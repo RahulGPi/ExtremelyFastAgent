@@ -395,6 +395,9 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if args.iter().any(|arg| arg == "--toggle") {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                }
                 let _ = app.emit("solo-toggle", ());
             } else if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
@@ -419,26 +422,6 @@ fn main() {
         ])
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
-                #[cfg(target_os = "linux")]
-                {
-                    use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-                    if gtk_layer_shell::is_supported() {
-                        match w.gtk_window() {
-                            Ok(native) => {
-                                native.init_layer_shell();
-                                native.set_layer(Layer::Overlay);
-                                native.set_anchor(Edge::Top, true);
-                                native.set_anchor(Edge::Left, false);
-                                native.set_anchor(Edge::Right, false);
-                                native.set_exclusive_zone(0);
-                                native.set_keyboard_mode(KeyboardMode::OnDemand);
-                            }
-                            Err(e) => eprintln!("Unable to create top overlay: {e}"),
-                        }
-                    } else {
-                        eprintln!("Layer shell unavailable; using a normal window.");
-                    }
-                }
                 let _ = w.show();
                 let _ = w.set_focus();
             }

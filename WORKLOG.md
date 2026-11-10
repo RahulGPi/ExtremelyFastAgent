@@ -115,3 +115,7 @@
 - Project configuration and default database now resolve independently of the launch working directory when running the development binary; verified CLI startup from /tmp without showing keys.
 - Added Wayland layer-shell top anchoring for supported Linux compositors, retaining an ordinary-window fallback. An unsandboxed timed launch produced no error; visual positioning, focus, resizing, and Alt+A interaction still require user verification.
 - Sixteen desktop tests, Clippy, JavaScript syntax and desktop build pass, including settings-file preservation, validation and permissions tests.
+
+## Shortcut visibility regression
+- The shortcut command launched a lingering SOLO process, but the user confirmed the new layer-shell window was invisible. Disabled the layer-shell integration and restored the previously visible normal window; the toggle bridge now explicitly shows the window before emitting its event.
+- Rebuilt and passed 16 desktop tests and Clippy. Stopped the old invisible instance so a subsequent shortcut launches the updated binary. Top-edge anchoring remains unfinished; the cause of the layer-shell visibility failure is not yet proven.
