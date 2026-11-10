@@ -123,3 +123,7 @@
 ## Concise automatic session titles
 - Added background generation of two-to-four-word titles based on the first question, with an immediate four-word local fallback and a conditional update that preserves manual renames.
 - A live title-generation test for the Pokémon filler question returned “Pokemon XY Filler Episodes.” Seventeen desktop tests, Clippy, UI syntax and build pass. The full GUI title refresh has not been interactively verified.
+
+## Cross-platform preparation and performance
+- Preserved development checkout paths; packaged executables now use per-user SOLO directories on Linux, macOS and Windows. API settings use a same-directory tempfile for replacement, including Windows-compatible replacement semantics. macOS and Windows remain unbuilt and untested; Windows ACL behavior is not verified.
+- On Linux, 17 desktop tests, Clippy, source-link tests and desktop debug build pass. Warm synthetic release CLI benchmark (10,000 in-memory messages, 1,000 iterations): history 7.2 µs and JSON construction/serialization 7.7 µs mean. An isolated debug desktop launch had main-process RSS 57,412 KiB at four seconds, excluding WebKit children. Isolated desktop services emitted warnings; measurements are not production or cross-platform benchmarks.

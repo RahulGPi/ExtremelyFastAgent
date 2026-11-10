@@ -150,23 +150,35 @@ fn project_root_from(exe: &std::path::Path) -> Option<std::path::PathBuf> {
         .find(|p| p.join("desktop/tauri.conf.json").is_file() && p.join("Cargo.toml").is_file())
         .map(std::path::Path::to_path_buf)
 }
+pub fn data_directory() -> std::path::PathBuf {
+    if let Some(project) = env::current_exe().ok().and_then(|p| project_root_from(&p)) {
+        return project;
+    }
+    #[cfg(target_os = "windows")]
+    let base = env::var_os("APPDATA").map(std::path::PathBuf::from);
+    #[cfg(target_os = "macos")]
+    let base = env::var_os("HOME")
+        .map(|p| std::path::PathBuf::from(p).join("Library/Application Support"));
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let base = env::var_os("XDG_CONFIG_HOME")
+        .map(std::path::PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|p| std::path::PathBuf::from(p).join(".config")));
+    base.unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join("SOLO")
+}
 pub fn default_db_path() -> std::path::PathBuf {
     env::var_os("MIM_DB")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| {
-            env::current_exe()
-                .ok()
-                .and_then(|p| project_root_from(&p))
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join("mim.db")
-        })
+        .unwrap_or_else(|| data_directory().join("mim.db"))
 }
 pub fn config_path() -> std::path::PathBuf {
-    env::current_exe()
-        .ok()
-        .and_then(|p| project_root_from(&p))
-        .unwrap_or_else(|| std::path::PathBuf::from("."))
-        .join(".env")
+    data_directory().join(".env")
+}
+pub fn ensure_parent(path: &std::path::Path) -> std::io::Result<()> {
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)?;
+    }
+    Ok(())
 }
 pub fn config(name: &str) -> Option<String> {
     if let Ok(v) = env::var(name) {
@@ -197,6 +209,7 @@ async fn main() -> Result<()> {
         .context("Set TAVILY_API_KEY in .env or your environment")?;
     let model = env::var("GROQ_MODEL").unwrap_or_else(|_| "qwen/qwen3.8-27b".into());
     let path = default_db_path();
+    ensure_parent(&path)?;
     let db = Connection::open(path)?;
     #[cfg(unix)]
     {

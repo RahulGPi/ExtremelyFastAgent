@@ -11,6 +11,7 @@ use tauri::{Emitter, Manager};
 
 fn database() -> Result<Connection, String> {
     let path = agent::default_db_path();
+    agent::ensure_parent(&path).map_err(|e| e.to_string())?;
     let db = Connection::open(&path).map_err(|e| e.to_string())?;
     #[cfg(unix)]
     {
@@ -420,25 +421,21 @@ fn save_api_keys_at(keys: Value, path: &std::path::Path) -> Result<(), String> {
     for (name, value) in updates {
         output.push_str(&format!("{name}='{value}'\n"));
     }
-    let temp = path.with_extension(format!("env.tmp.{}", std::process::id()));
-    let mut options = std::fs::OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        options.mode(0o600);
-    }
-    let result = (|| -> std::io::Result<()> {
-        let mut file = options.open(&temp)?;
-        file.write_all(output.as_bytes())?;
-        file.sync_all()?;
-        std::fs::rename(&temp, path)?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = std::fs::remove_file(&temp);
-    }
-    result.map_err(|e| format!("Could not save settings: {e}"))
+    agent::ensure_parent(path).map_err(|e| format!("Could not create settings folder: {e}"))?;
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(std::path::Path::new("."));
+    let mut temp = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|e| format!("Could not create settings: {e}"))?;
+    temp.write_all(output.as_bytes())
+        .map_err(|e| format!("Could not write settings: {e}"))?;
+    temp.as_file()
+        .sync_all()
+        .map_err(|e| format!("Could not sync settings: {e}"))?;
+    temp.persist(path)
+        .map_err(|e| format!("Could not save settings: {}", e.error))?;
+    Ok(())
 }
 #[tauri::command]
 fn resize_panel(window: tauri::Window, collapsed: bool) -> Result<(), String> {
