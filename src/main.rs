@@ -27,8 +27,22 @@ pub fn wants_search(input: &str) -> bool {
     .iter()
     .any(|phrase| text.contains(phrase))
 }
+fn cites_url(answer: &str, url: &str) -> bool {
+    answer.match_indices(url).any(|(index, _)| {
+        let before = answer[..index].chars().next_back();
+        let after = answer[index + url.len()..].chars().next();
+        let start_ok = before.is_none_or(|c| c.is_whitespace() || "([<\"'".contains(c));
+        let end_ok = after.is_none_or(|c| c.is_whitespace() || ")]>,;!\"'".contains(c))
+            || (after == Some('.')
+                && answer[index + url.len() + 1..]
+                    .chars()
+                    .next()
+                    .is_none_or(|c| c.is_whitespace() || ")]>,;!\"'".contains(c)));
+        start_ok && end_ok
+    })
+}
 fn supported_answer(answer: &str, sources: &[String], searched: bool) -> String {
-    if !searched || sources.iter().any(|url| answer.contains(url)) {
+    if !searched || sources.iter().any(|url| cites_url(answer, url)) {
         return answer.to_owned();
     }
     let links = sources
@@ -510,6 +524,25 @@ mod tests {
         ));
         assert!(wants_search("Look up the current weather"));
         assert!(!wants_search("hello there"));
+    }
+    #[test]
+    fn citations_require_url_boundaries() {
+        assert!(cites_url(
+            "See (https://example.org/a).",
+            "https://example.org/a"
+        ));
+        assert!(!cites_url(
+            "https://example.org/a.evil",
+            "https://example.org/a"
+        ));
+        assert!(!cites_url(
+            "https://example.org/attacker",
+            "https://example.org/a"
+        ));
+        assert!(!cites_url(
+            "https://evil.test/?url=https://example.org/a",
+            "https://example.org/a"
+        ));
     }
     #[test]
     fn rate_limit_delay_is_bounded() {

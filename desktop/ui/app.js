@@ -17,6 +17,7 @@ const progressReady = window.__TAURI__.event.listen('agent-progress', event => {
 function showSources(sources) {
   sourceList.replaceChildren();
   if (!sources.length) { sourceList.textContent = 'No source was linked to this passage. It has not been verified.'; }
+  else { const note = document.createElement('p'); note.textContent = 'Search results and excerpts; a citation does not guarantee this claim is supported.'; sourceList.append(note); }
   for (const source of sources) {
     const row = document.createElement('div'); row.className = 'source';
     const link = document.createElement('button'); link.type = 'button'; link.textContent = source.title || source.url;
@@ -53,12 +54,15 @@ function add(role, value, sources = null) {
     if (bullet) { if (!list) { list = document.createElement(/^\s*\d/.test(line) ? 'ol' : 'ul'); el.append(list); } block = document.createElement('li'); list.append(block); inline(block, bullet[1]); }
     else { list = null; const heading = line.match(/^#{1,4}\s+(.+)$/); block = document.createElement(heading ? 'h3' : 'p'); inline(block, heading ? heading[1] : line); el.append(block); }
     if (sources !== null) {
-      const matching = sources.filter(source => line.includes(source.url)); block.className = 'source-block'; block.tabIndex = 0;
+      const matching = sourceMatching.matchingSources(line, sources); block.className = 'source-block'; block.tabIndex = 0;
       block.title = matching.length ? 'Show cited source' : 'No source linked to this passage';
       const open = () => showSources(matching); block.addEventListener('click', open); block.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
     }
   }
-  if (sources !== null) { const note = document.createElement('div'); note.className = 'source-note'; note.textContent = 'Select a passage to inspect its linked sources. Unlinked passages are unverified.'; el.append(note); }
+  if (sources !== null) {
+    const note = document.createElement('div'); note.className = 'source-note'; note.textContent = 'Select a passage for its cited sources. Unlinked passages are unverified.'; el.append(note);
+    if (sources.length) { const all = document.createElement('button'); all.type = 'button'; all.className = 'sources-button'; all.textContent = `View all ${sources.length} search sources`; all.addEventListener('click', () => showSources(sources)); el.append(all); }
+  }
   messages.append(el); messages.scrollTop = messages.scrollHeight;
 }
 form.addEventListener('submit', async e => { e.preventDefault(); const text = input.value.trim(); if (!text || send.disabled) return; add('You', text); input.value = ''; send.disabled = true; active = true; status.textContent = '1 · Groq — starting…'; try { await progressReady; const result = await invoke('chat', { text }); add(result.provider === 'OpenRouter backup' ? 'mim · OpenRouter backup' : 'mim', result.answer, result.sources); } catch (error) { add('Could not complete request', String(error)); } finally { active = false; send.disabled = false; status.textContent = ''; input.focus(); } });

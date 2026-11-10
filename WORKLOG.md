@@ -87,3 +87,7 @@
 ## Provider progress in desktop UI
 - Added live status events from the agent to the desktop window, including Groq, retries, rate-limit waits, OpenRouter fallback, web search and answer preparation. No prompts or credentials are included in events.
 - Eleven tests, Clippy, desktop build and JavaScript syntax check pass. Progress rendering and event delivery have not been exercised interactively in a GUI session.
+
+## Source linking repair
+- Replaced substring association with whole-URL matching in the desktop and backend, preventing URL-prefix matches. Added an all-search-sources control and clear distinction between explicit passage citations and search results generally. Source metadata is still not saved with historical messages; citation association is not factual verification.
+- Added URL boundary and UI matching tests; 12 Rust tests, Node tests, Clippy and desktop build pass. Interactive GUI behavior was not retested.
