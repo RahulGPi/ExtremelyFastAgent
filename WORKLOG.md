@@ -22,3 +22,8 @@
 - Groq's original default model returned 404 and was absent from the account's model list; switched default to available `openai/gpt-oss-20b`.
 - Groq issued search calls and Tavily returned results, which reached the next Groq request. The full answer remains unverified: the final request returned 429 (rate limit). Corrected the final-round tool configuration after a 400 response.
 - Five unit tests, Clippy and formatting checks pass after the changes.
+
+## Latency investigation
+- One live debug-build search turn took 3.37 s wall time and 11,868 KiB peak RSS; three model calls and two search rounds occurred. It returned an incorrect stale Rust release and malformed citation markers (official releases list shows 1.99.1, not 1.92.0).
+- Three standalone fresh-connection Tavily fast searches took 0.318, 0.319 and 0.421 s. Three standalone small Groq requests took 0.473, 0.837 and 0.604 s. These are small samples and not a stage-by-stage breakdown of the live turn.
+- Inspection: search calls in each round run serially, responses are not streamed, search results accumulate into repeated model context, and each HTTP request has a 20-second timeout. Further profiling should measure per-stage timing in the CLI and test under realistic histories.
