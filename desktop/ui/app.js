@@ -1,4 +1,7 @@
 const invoke = window.__TAURI__.core.invoke;
+const cancelButton = document.querySelector('#cancel');
+invoke('recent_messages').then(rows => { for (const row of rows) add(row.role === 'user' ? 'You' : 'mim', row.content, row.role === 'assistant' ? row.sources : null); }).catch(e => { document.querySelector('#status').textContent = String(e); });
+cancelButton.addEventListener('click', () => { cancelButton.disabled = true; status.textContent = 'Cancelling…'; invoke('cancel').catch(e => {status.textContent = String(e);}); });
 const form = document.querySelector('#form'), input = document.querySelector('#input'), messages = document.querySelector('#messages'), status = document.querySelector('#status'), send = document.querySelector('#send'), evidence = document.querySelector('#evidence'), sourceList = document.querySelector('#source-list');
 let active = false;
 let currentProvider = 'Groq';
@@ -6,7 +9,7 @@ const progressLabel = () => currentProvider === 'OpenRouter' ? '1 · Groq unavai
 const progressReady = window.__TAURI__.event.listen('agent-progress', event => {
   if (!active) return;
   switch (event.payload) {
-    case 'groq': currentProvider = 'Groq'; status.textContent = '1 · Groq — thinking…'; break;
+    case 'groq': cancelButton.disabled = false; currentProvider = 'Groq'; status.textContent = '1 · Groq — thinking…'; break;
     case 'retry': status.textContent = `${progressLabel()} — retrying an invalid tool call…`; break;
     case 'rate_limit': status.textContent = `${progressLabel()} — rate limited, waiting to retry…`; break;
     case 'fallback': currentProvider = 'OpenRouter'; status.textContent = '1 · Groq unavailable  →  2 · OpenRouter — thinking…'; break;
@@ -65,7 +68,7 @@ function add(role, value, sources = null) {
   }
   messages.append(el); messages.scrollTop = messages.scrollHeight;
 }
-form.addEventListener('submit', async e => { e.preventDefault(); const text = input.value.trim(); if (!text || send.disabled) return; add('You', text); input.value = ''; send.disabled = true; active = true; status.textContent = '1 · Groq — starting…'; try { await progressReady; const result = await invoke('chat', { text }); add(result.provider === 'OpenRouter backup' ? 'mim · OpenRouter backup' : 'mim', result.answer, result.sources); } catch (error) { add('Could not complete request', String(error)); } finally { active = false; send.disabled = false; status.textContent = ''; input.focus(); } });
+form.addEventListener('submit', async e => { e.preventDefault(); const text = input.value.trim(); if (!text || send.disabled) return; add('You', text); input.value = ''; send.disabled = true; cancelButton.hidden = false; cancelButton.disabled = true; active = true; status.textContent = '1 · Groq — starting…'; try { await progressReady; const result = await invoke('chat', { text }); add(result.provider === 'OpenRouter backup' ? 'mim · OpenRouter backup' : 'mim', result.answer, result.sources); } catch (error) { add('Could not complete request', String(error)); } finally { active = false; cancelButton.hidden = true; send.disabled = false; status.textContent = ''; input.focus(); } });
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
 document.querySelector('#close-evidence').addEventListener('click', () => { evidence.hidden = true; });
 document.querySelector('#close').addEventListener('click', () => invoke('close_window'));

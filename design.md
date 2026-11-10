@@ -41,3 +41,5 @@ Groq remains primary. When configured with `OPENROUTER_API_KEY`, the agent switc
 The desktop sends live, content-free progress events for Groq, retries, fallback to OpenRouter, search and answer preparation. The status keeps the Groq-to-OpenRouter sequence visible during fallback; completed backup responses retain an OpenRouter label.
 
 Source inspection matches whole URLs rather than substrings; passages without an explicit matching citation remain unverified. The desktop can also display all retrieved search results, which are not automatically evidence for every claim. Source metadata is not persisted with past messages.
+
+New desktop assistant messages and their retrieved source metadata are stored together in SQLite and the latest 50 messages are restored on startup. Existing messages have no recovered source metadata. The Stop button cancels an in-flight local request; a provider may already have received or billed it. The notch overlay and global Alt+A shortcut remain unimplemented on COSMIC Wayland.

@@ -91,3 +91,8 @@
 ## Source linking repair
 - Replaced substring association with whole-URL matching in the desktop and backend, preventing URL-prefix matches. Added an all-search-sources control and clear distinction between explicit passage citations and search results generally. Source metadata is still not saved with historical messages; citation association is not factual verification.
 - Added URL boundary and UI matching tests; 12 Rust tests, Node tests, Clippy and desktop build pass. Interactive GUI behavior was not retested.
+
+## Persistent sources and cancellation
+- New assistant answers and source metadata are committed together; the UI restores recent messages and sources. Old answers lack source metadata and remain unverified.
+- Added a Stop button that cancels the in-flight request locally. Cancellation cannot guarantee a remote provider stops processing or billing.
+- Desktop tests include closing and reopening a database with source metadata. Thirteen tests, desktop Clippy, JavaScript syntax and build pass. GUI cancellation and source restoration need interactive testing. Notch positioning and system-wide shortcut remain unimplemented; this session's COSMIC portal does not advertise global shortcuts.

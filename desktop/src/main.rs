@@ -4,7 +4,9 @@
 mod agent;
 use rusqlite::Connection;
 use serde_json::{Value, json};
-use std::{env, time::Duration};
+use std::{env, sync::Mutex, time::Duration};
+use tokio::sync::oneshot;
+struct ActiveRequest(Mutex<(bool, Option<oneshot::Sender<()>>)>);
 use tauri::{Emitter, Manager};
 
 fn database() -> Result<Connection, String> {
@@ -16,11 +18,18 @@ fn database() -> Result<Connection, String> {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
             .map_err(|e| e.to_string())?;
     }
+    db.execute_batch("PRAGMA foreign_keys=ON;")
+        .map_err(|e| e.to_string())?;
     agent::init_memory(&db).map_err(|e| e.to_string())?;
+    db.execute_batch("CREATE TABLE IF NOT EXISTS message_sources (message_id INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE, sources TEXT NOT NULL)").map_err(|e| e.to_string())?;
     Ok(db)
 }
 #[tauri::command]
-async fn chat(app: tauri::AppHandle, text: String) -> Result<Value, String> {
+async fn chat(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, ActiveRequest>,
+    text: String,
+) -> Result<Value, String> {
     if text.trim().is_empty() || text.len() > 16000 {
         return Err("Enter a question of up to 16,000 bytes.".into());
     }
@@ -66,7 +75,15 @@ async fn chat(app: tauri::AppHandle, text: String) -> Result<Value, String> {
     let progress = |step: &str| {
         let _ = app.emit("agent-progress", step);
     };
-    let result = agent::answer(
+    let (cancel_tx, cancel_rx) = oneshot::channel();
+    {
+        let mut active = state.0.lock().map_err(|_| "Request state unavailable")?;
+        if active.0 {
+            return Err("A request is already running".into());
+        }
+        *active = (true, Some(cancel_tx));
+    }
+    let request = agent::answer(
         &client,
         &groq,
         &tavily,
@@ -79,13 +96,53 @@ async fn chat(app: tauri::AppHandle, text: String) -> Result<Value, String> {
             &progress,
         ),
         agent::wants_search(&text),
-    )
-    .await
-    .map_err(|e| format!("{e:#}"))?;
-    agent::save(&database()?, "assistant", &result).map_err(|e| e.to_string())?;
+    );
+    let outcome = tokio::select! { result = request => result.map_err(|e| format!("{e:#}")), _ = cancel_rx => Err("Request cancelled.".to_owned()) };
+    state.0.lock().map_err(|_| "Request state unavailable")?.0 = false;
+    let result = outcome?;
+    persist_answer(&database()?, &result, &sources)?;
     Ok(
         json!({"answer":result,"sources":sources,"provider":if used_backup {"OpenRouter backup"} else {"Groq"}}),
     )
+}
+fn persist_answer(db: &Connection, result: &str, sources: &[Value]) -> Result<(), String> {
+    db.execute_batch("BEGIN").map_err(|e| e.to_string())?;
+    let stored = (|| -> Result<(), String> {
+        agent::save(db, "assistant", result).map_err(|e| e.to_string())?;
+        let id = db.last_insert_rowid();
+        let json = serde_json::to_string(&sources).map_err(|e| e.to_string())?;
+        db.execute(
+            "INSERT INTO message_sources(message_id,sources) VALUES (?1,?2)",
+            rusqlite::params![id, json],
+        )
+        .map_err(|e| e.to_string())?;
+        db.execute_batch("COMMIT").map_err(|e| e.to_string())?;
+        Ok(())
+    })();
+    if stored.is_err() {
+        let _ = db.execute_batch("ROLLBACK");
+    }
+    stored
+}
+#[tauri::command]
+fn cancel(state: tauri::State<'_, ActiveRequest>) -> Result<(), String> {
+    if let Some(sender) = state
+        .0
+        .lock()
+        .map_err(|_| "Request state unavailable")?
+        .1
+        .take()
+    {
+        let _ = sender.send(());
+    }
+    Ok(())
+}
+#[tauri::command]
+fn recent_messages() -> Result<Vec<Value>, String> {
+    let db = database()?;
+    let mut stmt = db.prepare("SELECT m.role,m.content,m.created_at,COALESCE(s.sources,'[]') FROM (SELECT * FROM messages ORDER BY id DESC LIMIT 50) m LEFT JOIN message_sources s ON s.message_id=m.id ORDER BY m.id").map_err(|e| e.to_string())?;
+    let rows = stmt.query_map([], |r| { let source: String = r.get(3)?; Ok(json!({"role":r.get::<_,String>(0)?,"content":r.get::<_,String>(1)?,"created_at":r.get::<_,String>(2)?,"sources":serde_json::from_str::<Value>(&source).unwrap_or(json!([]))})) }).map_err(|e|e.to_string())?.collect::<rusqlite::Result<Vec<_>>>().map_err(|e| e.to_string())?;
+    Ok(rows)
 }
 #[tauri::command]
 fn history(query: String) -> Result<Vec<(String, String)>, String> {
@@ -129,8 +186,11 @@ fn close_window(window: tauri::Window) {
 }
 fn main() {
     tauri::Builder::default()
+        .manage(ActiveRequest(Mutex::new((false, None))))
         .invoke_handler(tauri::generate_handler![
             chat,
+            cancel,
+            recent_messages,
             history,
             open_source,
             close_window
@@ -143,4 +203,35 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("Failed to start desktop app");
+}
+
+#[cfg(test)]
+mod desktop_tests {
+    use super::*;
+    #[test]
+    fn source_metadata_survives_reopen() {
+        let path = std::env::temp_dir().join(format!("mim-source-test-{}.db", std::process::id()));
+        {
+            let db = Connection::open(&path).unwrap();
+            agent::init_memory(&db).unwrap();
+            db.execute_batch("CREATE TABLE message_sources(message_id INTEGER PRIMARY KEY, sources TEXT NOT NULL)").unwrap();
+            persist_answer(
+                &db,
+                "answer",
+                &[json!({"url":"https://example.org/a","content":"excerpt"})],
+            )
+            .unwrap();
+        }
+        {
+            let db = Connection::open(&path).unwrap();
+            let data: String = db
+                .query_row("SELECT sources FROM message_sources", [], |r| r.get(0))
+                .unwrap();
+            assert_eq!(
+                serde_json::from_str::<Value>(&data).unwrap()[0]["url"],
+                "https://example.org/a"
+            );
+        }
+        std::fs::remove_file(path).unwrap();
+    }
 }
