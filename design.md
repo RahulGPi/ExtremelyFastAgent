@@ -23,3 +23,5 @@ The interactive terminal displays a compact chat header and progress messages; r
 Default Groq model is `qwen/qwen3.8-27b` (overridable via `GROQ_MODEL`). The agent retries one provider-rejected malformed tool call and enforces its existing search-round limit; provider errors are displayed without dumping raw response bodies.
 
 Interactive input uses line editing and in-session input history on supported terminals. Ctrl+C clears input or cancels an active request; Ctrl+D exits. Piped input keeps the simple line-oriented mode. Usage counts are shown when `MIM_PROFILE` is set.
+
+Requests explicitly asking to find or search information, plus common freshness and filler-list cues, require a web search on the first model call. For search-based answers, the CLI checks that the answer contains a returned source URL; otherwise it displays source links instead of the model's answer. This check does not verify whether a source supports individual claims. Rate-limit responses with a short Retry-After get at most one retry.

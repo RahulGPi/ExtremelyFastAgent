@@ -59,3 +59,8 @@
 ## Terminal experience
 - Added terminal line editing with in-session input history, clear help, request cancellation, and quieter token diagnostics. Piped input retains line-oriented behavior; no separate history file stores inputs.
 - Eight tests and Clippy pass. PTY smoke test confirmed startup and help; the test environment's terminal did not support reliable arrow-key verification. No live provider calls were needed for this change.
+
+## Pokémon filler regression
+- The model answered the user's request without searching and fabricated episode numbers and titles. Added explicit search routing for find/search cues, stricter source instructions, and a check that blocks search-based answers without an actual returned URL.
+- Live Qwen tests hit malformed tool calls and short-term output-token limits; an alternative model produced another fabricated list despite searching. After the source-link check, a live test returned source links instead of the uncited fabricated answer. This is not claim-level verification and search quality is still unresolved.
+- Ten tests and Clippy pass. One bounded short rate-limit retry added; longer rate limits surface to the user.
