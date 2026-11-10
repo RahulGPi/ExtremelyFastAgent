@@ -47,3 +47,5 @@ New desktop assistant messages and their retrieved source metadata are stored to
 ## Desktop sessions
 
 A new desktop session is created on each launch; the Sessions panel supports search by title or message text, reopening, rename and confirmed deletion. The first user question becomes the default title. Pre-session messages are assigned to an Earlier conversations session without modifying source metadata. Desktop model context is limited to the selected session; it does not automatically recall other sessions. Up to 200 messages are displayed when reopening a session.
+
+The desktop welcome shows SOLO. A collapse button resizes the window to a compact SOLO button; clicking it reopens the chat. Alt+A toggles it while the app has keyboard focus. COSMIC Wayland currently controls window placement, so this does not yet anchor the button to the top edge or provide a global shortcut.

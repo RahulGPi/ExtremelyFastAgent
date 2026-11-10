@@ -3,7 +3,7 @@ const cancelButton = document.querySelector('#cancel');
 let sessionId = null;
 const panel = document.querySelector('#sessions-panel'), sessionList = document.querySelector('#sessions-list'), sessionSearch = document.querySelector('#session-search');
 const ready = invoke('new_session').then(id => { sessionId = id; }).catch(e => { status.textContent = `Unable to create session: ${e}`; throw e; });
-function resetMessages() { messages.replaceChildren(); const welcome = document.createElement('div'); welcome.className = 'welcome'; welcome.textContent = 'What can I help with?'; messages.append(welcome); evidence.hidden = true; }
+function resetMessages() { messages.replaceChildren(); const welcome = document.createElement('div'); welcome.className = 'welcome'; const brand = document.createElement('div'); brand.className = 'brand'; brand.textContent = 'SOLO'; const greeting = document.createElement('div'); greeting.textContent = 'What can I help with?'; welcome.append(brand, greeting); messages.append(welcome); evidence.hidden = true; }
 async function loadSession(id) { if (active) return; const rows = await invoke('recent_messages', {sessionId:id}); sessionId = id; resetMessages(); for (const row of rows) add(row.role === 'user' ? 'You' : 'mim', row.content, row.role === 'assistant' ? row.sources : null); panel.hidden = true; input.focus(); }
 async function refreshSessions() { const rows = await invoke('list_sessions', {query:sessionSearch.value}); sessionList.replaceChildren(); for (const row of rows) { const item=document.createElement('div'); item.className='session-row'; const open=document.createElement('button'); open.className='session-open'; open.textContent=row.title; open.title=row.created_at; open.onclick=() => loadSession(row.id).catch(e => status.textContent=String(e)); const rename=document.createElement('button'); rename.textContent='Rename'; rename.onclick=async () => { if (active) return; const title=prompt('Rename session',row.title); if (title !== null && title.trim()) { await invoke('rename_session',{sessionId:row.id,title}); await refreshSessions(); } }; const remove=document.createElement('button'); remove.textContent='Delete'; remove.onclick=async () => { if (active) return; if (!confirm(`Delete “${row.title}” and its messages?`)) return; await invoke('delete_session',{sessionId:row.id}); if (sessionId===row.id) { sessionId=await invoke('new_session'); resetMessages(); } await refreshSessions(); }; item.append(open,rename,remove); sessionList.append(item); } }
 document.querySelector('#sessions-toggle').addEventListener('click', async () => { if (active) return; panel.hidden=!panel.hidden; if (!panel.hidden) { await refreshSessions(); sessionSearch.focus(); } });
@@ -81,3 +81,11 @@ form.addEventListener('submit', async e => { e.preventDefault(); const text = in
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
 document.querySelector('#close-evidence').addEventListener('click', () => { evidence.hidden = true; });
 document.querySelector('#close').addEventListener('click', () => invoke('close_window'));
+
+async function setCollapsed(collapsed) {
+  try { await invoke('resize_panel', {collapsed}); document.body.classList.toggle('collapsed', collapsed); document.querySelector('#expand-notch').hidden = !collapsed; if (!collapsed) input.focus(); }
+  catch (error) { status.textContent = `Could not resize window: ${error}`; }
+}
+document.querySelector('#collapse').addEventListener('click', () => setCollapsed(true));
+document.querySelector('#expand-notch').addEventListener('click', () => setCollapsed(false));
+document.addEventListener('keydown', e => { if (e.altKey && e.key.toLowerCase() === 'a') { e.preventDefault(); setCollapsed(!document.body.classList.contains('collapsed')); } });

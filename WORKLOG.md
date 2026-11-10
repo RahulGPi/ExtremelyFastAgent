@@ -100,3 +100,7 @@
 ## Desktop sessions
 - Added a new session per app launch, a searchable Sessions panel, rename and confirmed deletion, and session-scoped model history. Prior messages migrate into Earlier conversations; stored citations remain linked to their messages.
 - Fourteen desktop tests (including idempotent legacy migration), desktop Clippy, JavaScript syntax and desktop build pass. Session UI and destructive delete behavior have not been interactively tested; reopened views currently load up to 200 messages.
+
+## SOLO welcome and compact window
+- Added SOLO above the welcome greeting and a compact collapsed button that can reopen chat. Alt+A works within the focused webview; it is not registered globally, and top-center anchoring remains unimplemented.
+- Fourteen desktop tests, Clippy, JavaScript syntax and desktop build pass. Collapse, focus, and Wayland sizing have not been interactively verified.

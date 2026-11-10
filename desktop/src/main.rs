@@ -274,6 +274,21 @@ fn open_source(url: String) -> Result<(), String> {
     Ok(())
 }
 #[tauri::command]
+fn resize_panel(window: tauri::Window, collapsed: bool) -> Result<(), String> {
+    let (width, height) = if collapsed {
+        (220.0, 48.0)
+    } else {
+        (460.0, 620.0)
+    };
+    window
+        .set_size(tauri::LogicalSize::new(width, height))
+        .map_err(|e| e.to_string())?;
+    if !collapsed {
+        let _ = window.set_focus();
+    }
+    Ok(())
+}
+#[tauri::command]
 fn close_window(window: tauri::Window) {
     let _ = window.close();
 }
@@ -290,6 +305,7 @@ fn main() {
             delete_session,
             history,
             open_source,
+            resize_panel,
             close_window
         ])
         .setup(|app| {
