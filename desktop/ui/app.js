@@ -117,3 +117,20 @@ document.querySelector('#expand-notch').addEventListener('click', () => setColla
 document.addEventListener('keydown', e => { if (e.altKey && e.key.toLowerCase() === 'a') { e.preventDefault(); setCollapsed(!document.body.classList.contains('collapsed')); } });
 
 window.__TAURI__.event.listen('solo-toggle', () => setCollapsed(!document.body.classList.contains('collapsed')));
+
+const settingsPanel = document.querySelector('#settings-panel');
+async function updateKeyStatus() {
+  const values = await invoke('api_key_status');
+  for (const name of ['groq','tavily','openrouter']) { const v=values[name]; document.querySelector(`#${name}-status`).textContent = v.environment ? '· set via environment' : v.configured ? '· configured' : '· not configured'; }
+}
+document.querySelector('#settings-toggle').addEventListener('click', async () => {
+  settingsPanel.hidden = !settingsPanel.hidden;
+  if (!settingsPanel.hidden) { panel.hidden = true; try { await updateKeyStatus(); } catch(e) { document.querySelector('#settings-message').textContent = String(e); } }
+});
+document.querySelector('#settings-close').addEventListener('click', () => { settingsPanel.hidden = true; for (const field of document.querySelectorAll('#api-settings input')) field.value=''; });
+document.querySelector('#api-settings').addEventListener('submit', async e => {
+  e.preventDefault(); const message=document.querySelector('#settings-message');
+  const keys = Object.fromEntries(['groq','tavily','openrouter'].map(name => [name,document.querySelector(`#${name}-key`).value]));
+  try { await invoke('save_api_keys',{keys}); for (const field of document.querySelectorAll('#api-settings input')) field.value=''; await updateKeyStatus(); message.textContent='Keys saved.'; }
+  catch(error) { message.textContent=String(error); }
+});

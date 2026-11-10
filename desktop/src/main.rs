@@ -10,7 +10,7 @@ struct ActiveRequest(Mutex<(bool, Option<oneshot::Sender<()>>)>);
 use tauri::{Emitter, Manager};
 
 fn database() -> Result<Connection, String> {
-    let path = env::var("MIM_DB").unwrap_or_else(|_| "mim.db".into());
+    let path = agent::default_db_path();
     let db = Connection::open(&path).map_err(|e| e.to_string())?;
     #[cfg(unix)]
     {
@@ -300,6 +300,79 @@ fn open_source(url: String) -> Result<(), String> {
     Ok(())
 }
 #[tauri::command]
+fn api_key_status() -> Value {
+    let status = |name: &str| json!({"configured":agent::config(name).is_some_and(|s| !s.is_empty()), "environment":std::env::var_os(name).is_some()});
+    json!({"groq":status("GROQ_API_KEY"),"tavily":status("TAVILY_API_KEY"),"openrouter":status("OPENROUTER_API_KEY")})
+}
+#[tauri::command]
+fn save_api_keys(keys: Value) -> Result<(), String> {
+    save_api_keys_at(keys, &agent::config_path())
+}
+fn save_api_keys_at(keys: Value, path: &std::path::Path) -> Result<(), String> {
+    use std::io::Write;
+    let fields = [
+        ("groq", "GROQ_API_KEY"),
+        ("tavily", "TAVILY_API_KEY"),
+        ("openrouter", "OPENROUTER_API_KEY"),
+    ];
+    let mut updates = Vec::new();
+    for (field, name) in fields {
+        if let Some(value) = keys.get(field).and_then(Value::as_str) {
+            let value = value.trim();
+            if value.is_empty() {
+                continue;
+            }
+            if value.len() > 512
+                || !value
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+            {
+                return Err(format!("Invalid characters in {field} key"));
+            }
+            updates.push((name, value));
+        }
+    }
+    if updates.is_empty() {
+        return Err("Enter at least one key to save".into());
+    }
+    let existing = match std::fs::read_to_string(path) {
+        Ok(data) => data,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(format!("Cannot read settings: {e}")),
+    };
+    let mut output = String::new();
+    for line in existing.lines() {
+        let plain = line.trim().strip_prefix("export ").unwrap_or(line.trim());
+        let key = plain.split_once('=').map(|(k, _)| k.trim()).unwrap_or("");
+        if !updates.iter().any(|(name, _)| *name == key) {
+            output.push_str(line);
+            output.push('\n');
+        }
+    }
+    for (name, value) in updates {
+        output.push_str(&format!("{name}='{value}'\n"));
+    }
+    let temp = path.with_extension(format!("env.tmp.{}", std::process::id()));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let result = (|| -> std::io::Result<()> {
+        let mut file = options.open(&temp)?;
+        file.write_all(output.as_bytes())?;
+        file.sync_all()?;
+        std::fs::rename(&temp, path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temp);
+    }
+    result.map_err(|e| format!("Could not save settings: {e}"))
+}
+#[tauri::command]
 fn resize_panel(window: tauri::Window, collapsed: bool) -> Result<(), String> {
     let (width, height) = if collapsed {
         (220.0, 48.0)
@@ -340,10 +413,33 @@ fn main() {
             history,
             open_source,
             resize_panel,
+            api_key_status,
+            save_api_keys,
             close_window
         ])
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
+                #[cfg(target_os = "linux")]
+                {
+                    use gtk_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+                    if gtk_layer_shell::is_supported() {
+                        match w.gtk_window() {
+                            Ok(native) => {
+                                native.init_layer_shell();
+                                native.set_layer(Layer::Overlay);
+                                native.set_anchor(Edge::Top, true);
+                                native.set_anchor(Edge::Left, false);
+                                native.set_anchor(Edge::Right, false);
+                                native.set_exclusive_zone(0);
+                                native.set_keyboard_mode(KeyboardMode::OnDemand);
+                            }
+                            Err(e) => eprintln!("Unable to create top overlay: {e}"),
+                        }
+                    } else {
+                        eprintln!("Layer shell unavailable; using a normal window.");
+                    }
+                }
+                let _ = w.show();
                 let _ = w.set_focus();
             }
             Ok(())
@@ -355,6 +451,33 @@ fn main() {
 #[cfg(test)]
 mod desktop_tests {
     use super::*;
+    #[test]
+    fn api_key_save_preserves_other_settings_and_rejects_invalid() {
+        let dir = std::env::temp_dir().join(format!("solo-settings-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join(".env");
+        std::fs::write(
+            &path,
+            "export GROQ_API_KEY='old'\nTAVILY_API_KEY='keep'\nOTHER=value\n",
+        )
+        .unwrap();
+        save_api_keys_at(json!({"groq":"new-key"}), &path).unwrap();
+        let contents = std::fs::read_to_string(&path).unwrap();
+        assert!(contents.contains("GROQ_API_KEY='new-key'"));
+        assert!(contents.contains("TAVILY_API_KEY='keep'"));
+        assert!(contents.contains("OTHER=value"));
+        assert!(save_api_keys_at(json!({"groq":"bad\nkey"}), &path).is_err());
+        assert_eq!(contents, std::fs::read_to_string(&path).unwrap());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
     #[test]
     fn session_titles_capture_question_topic() {
         assert_eq!(

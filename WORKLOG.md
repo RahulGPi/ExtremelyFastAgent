@@ -109,3 +109,9 @@
 - Added in-app per-session delete confirmation and rename editing, and topic-based deterministic titles from the first prompt.
 - Added Tauri single-instance handling and a `--toggle` event for binding through COSMIC custom shortcuts. The global binding is not installed automatically and the top-edge overlay remains unimplemented. `sudo -n apt-get install libgtk-layer-shell-dev` could not run because sudo requires a password.
 - Fifteen desktop tests, Clippy, JavaScript syntax and desktop build pass. Single-instance event delivery, the COSMIC shortcut, and session controls still need interactive verification.
+
+## API settings, shortcut startup and overlay
+- Added masked Groq, Tavily and OpenRouter key settings, preserving other settings and writing with restrictive Unix permissions. Environment variables take precedence; saved keys are not redisplayed.
+- Project configuration and default database now resolve independently of the launch working directory when running the development binary; verified CLI startup from /tmp without showing keys.
+- Added Wayland layer-shell top anchoring for supported Linux compositors, retaining an ordinary-window fallback. An unsandboxed timed launch produced no error; visual positioning, focus, resizing, and Alt+A interaction still require user verification.
+- Sixteen desktop tests, Clippy, JavaScript syntax and desktop build pass, including settings-file preservation, validation and permissions tests.

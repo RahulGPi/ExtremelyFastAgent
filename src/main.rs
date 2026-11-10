@@ -145,11 +145,35 @@ pub fn search_memory(
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
+fn project_root_from(exe: &std::path::Path) -> Option<std::path::PathBuf> {
+    exe.ancestors()
+        .find(|p| p.join("desktop/tauri.conf.json").is_file() && p.join("Cargo.toml").is_file())
+        .map(std::path::Path::to_path_buf)
+}
+pub fn default_db_path() -> std::path::PathBuf {
+    env::var_os("MIM_DB")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            env::current_exe()
+                .ok()
+                .and_then(|p| project_root_from(&p))
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join("mim.db")
+        })
+}
+pub fn config_path() -> std::path::PathBuf {
+    env::current_exe()
+        .ok()
+        .and_then(|p| project_root_from(&p))
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".env")
+}
 pub fn config(name: &str) -> Option<String> {
     if let Ok(v) = env::var(name) {
         return Some(v);
     }
-    let file = std::fs::read_to_string(".env").ok()?;
+    let path = config_path();
+    let file = std::fs::read_to_string(path).ok()?;
     file.lines()
         .filter_map(|line| line.trim().strip_prefix("export ").or(Some(line.trim())))
         .filter_map(|line| line.split_once('='))
@@ -172,7 +196,7 @@ async fn main() -> Result<()> {
         .filter(|v| !v.is_empty())
         .context("Set TAVILY_API_KEY in .env or your environment")?;
     let model = env::var("GROQ_MODEL").unwrap_or_else(|_| "qwen/qwen3.8-27b".into());
-    let path = env::var("MIM_DB").unwrap_or_else(|_| "mim.db".into());
+    let path = default_db_path();
     let db = Connection::open(path)?;
     #[cfg(unix)]
     {
