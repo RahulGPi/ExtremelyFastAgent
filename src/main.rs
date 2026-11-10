@@ -9,7 +9,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-fn wants_search(input: &str) -> bool {
+pub fn wants_search(input: &str) -> bool {
     let text = input.to_lowercase();
     [
         "search",
@@ -63,7 +63,7 @@ fn truncate_utf8(s: &str, max_bytes: usize) -> &str {
     }
     &s[..end]
 }
-fn history(db: &Connection) -> Result<Vec<Value>> {
+pub fn history(db: &Connection) -> Result<Vec<Value>> {
     let mut stmt = db.prepare("SELECT role, content FROM messages ORDER BY id DESC LIMIT 12")?;
     let mut rows = stmt.query([])?;
     let mut messages = Vec::new();
@@ -83,7 +83,7 @@ fn history(db: &Connection) -> Result<Vec<Value>> {
     Ok(messages)
 }
 
-fn init_memory(db: &Connection) -> Result<()> {
+pub fn init_memory(db: &Connection) -> Result<()> {
     let exists: bool = db.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'message_index')",
         [],
@@ -104,7 +104,11 @@ fn init_memory(db: &Connection) -> Result<()> {
     db.execute_batch("COMMIT;")?;
     Ok(())
 }
-fn search_memory(db: &Connection, query: &str, older_only: bool) -> Result<Vec<(String, String)>> {
+pub fn search_memory(
+    db: &Connection,
+    query: &str,
+    older_only: bool,
+) -> Result<Vec<(String, String)>> {
     let terms = query
         .split(|c: char| !c.is_alphanumeric())
         .filter(|s| s.chars().count() >= 3)
@@ -122,7 +126,7 @@ fn search_memory(db: &Connection, query: &str, older_only: bool) -> Result<Vec<(
         .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
 }
-fn config(name: &str) -> Option<String> {
+pub fn config(name: &str) -> Option<String> {
     if let Ok(v) = env::var(name) {
         return Some(v);
     }
@@ -133,7 +137,7 @@ fn config(name: &str) -> Option<String> {
         .find(|(k, _)| k.trim() == name)
         .map(|(_, v)| v.trim().trim_matches(|c| c == '\'' || c == '"').to_owned())
 }
-fn save(db: &Connection, role: &str, content: &str) -> Result<()> {
+pub fn save(db: &Connection, role: &str, content: &str) -> Result<()> {
     db.execute(
         "INSERT INTO messages (role, content, created_at) VALUES (?1, ?2, ?3)",
         params![role, content, Utc::now().to_rfc3339()],
@@ -299,7 +303,7 @@ async fn main() -> Result<()> {
     }
     Ok(())
 }
-async fn answer(
+pub async fn answer(
     client: &Client,
     key: &str,
     search_key: &str,

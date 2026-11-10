@@ -1,0 +1,27 @@
+{
+  "productName": "mim agent",
+  "version": "0.1.0",
+  "identifier": "com.mim.agent",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "mim agent",
+        "width": 460,
+        "height": 620,
+        "resizable": true,
+        "alwaysOnTop": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    },
+    "withGlobalTauri": true
+  },
+  "bundle": {
+    "active": false
+  }
+}

@@ -25,3 +25,7 @@ Default Groq model is `qwen/qwen3.8-27b` (overridable via `GROQ_MODEL`). The age
 Interactive input uses line editing and in-session input history on supported terminals. Ctrl+C clears input or cancels an active request; Ctrl+D exits. Piped input keeps the simple line-oriented mode. Usage counts are shown when `MIM_PROFILE` is set.
 
 Requests explicitly asking to find or search information, plus common freshness and filler-list cues, require a web search on the first model call. For search-based answers, the CLI checks that the answer contains a returned source URL; otherwise it displays source links instead of the model's answer. This check does not verify whether a source supports individual claims. Rate-limit responses with a short Retry-After get at most one retry.
+
+## Desktop prototype
+
+`desktop/` contains a Tauri 2 window and static chat UI using the existing Rust agent and SQLite database. Launch from the repository root with `cargo run --manifest-path desktop/Cargo.toml`, so `.env` and `mim.db` resolve as in the CLI. GTK3 and WebKitGTK 4.1 development packages are required on Linux. This prototype is a normal always-on-top window; the top-edge notch, global Alt+A shortcut, cancellation and cross-platform packaging are not implemented. The backend is currently shared by including the CLI module and needs refactoring into a library.

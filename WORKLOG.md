@@ -64,3 +64,8 @@
 - The model answered the user's request without searching and fabricated episode numbers and titles. Added explicit search routing for find/search cues, stricter source instructions, and a check that blocks search-based answers without an actual returned URL.
 - Live Qwen tests hit malformed tool calls and short-term output-token limits; an alternative model produced another fabricated list despite searching. After the source-link check, a live test returned source links instead of the uncited fabricated answer. This is not claim-level verification and search quality is still unresolved.
 - Ten tests and Clippy pass. One bounded short rate-limit retry added; longer rate limits surface to the user.
+
+## Tauri desktop prototype
+- Added a Tauri window with a chat form, status, source text and searchable question history backed by the existing agent. Added an application icon and Linux build configuration.
+- GTK3 and WebKitGTK build dependencies were installed by the user. `cargo build --manifest-path desktop/Cargo.toml` passes; CLI tests and JavaScript syntax check pass. A sandboxed GUI launch could not access GTK; an unsandboxed timed launch produced no startup error, but interaction was not verified.
+- The requested notch overlay, global shortcut, cancellation, actual link handling, proper shared backend and cross-platform tests remain outstanding. This is a prototype, not the complete planned desktop experience.
