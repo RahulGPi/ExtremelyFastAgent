@@ -33,7 +33,7 @@ fn save(db: &Connection, role: &str, content: &str) -> Result<()> {
 async fn main() -> Result<()> {
     let groq = env::var("GROQ_API_KEY").context("Set GROQ_API_KEY")?;
     let tavily = env::var("TAVILY_API_KEY").context("Set TAVILY_API_KEY")?;
-    let model = env::var("GROQ_MODEL").unwrap_or_else(|_| "llama-3.3-70b-versatile".into());
+    let model = env::var("GROQ_MODEL").unwrap_or_else(|_| "openai/gpt-oss-20b".into());
     let path = env::var("MIM_DB").unwrap_or_else(|_| "mim.db".into());
     let db = Connection::open(path)?;
     #[cfg(unix)]
@@ -96,9 +96,8 @@ async fn answer(
     for round in 0..3 {
         let mut req =
             json!({"model":model,"messages":messages,"max_tokens":1024,"temperature":0.2});
-        if round < 2 {
-            req["tools"] = tools.clone();
-        } else {
+        req["tools"] = tools.clone();
+        if round >= 2 {
             req["tool_choice"] = json!("none");
         }
         let response: Value = client

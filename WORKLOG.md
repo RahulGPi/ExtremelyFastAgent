@@ -16,3 +16,9 @@
 ## Tooling
 - Installed matching Clippy and rustfmt binaries locally under ignored `.tools/` from the system distribution packages.
 - Formatted the Rust source; `cargo fmt -- --check`, `cargo clippy --all-targets -- -D warnings`, and all five tests pass using `.tools/usr/bin` on PATH.
+
+## Live provider test
+- Both API keys are present; `.env` permissions are 600. No credentials were logged.
+- Groq's original default model returned 404 and was absent from the account's model list; switched default to available `openai/gpt-oss-20b`.
+- Groq issued search calls and Tavily returned results, which reached the next Groq request. The full answer remains unverified: the final request returned 429 (rate limit). Corrected the final-round tool configuration after a 400 response.
+- Five unit tests, Clippy and formatting checks pass after the changes.
