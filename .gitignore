@@ -7,3 +7,6 @@
 /.tools
 
 /desktop/target
+
+node_modules/
+solo-node.db*
