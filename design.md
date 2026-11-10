@@ -30,4 +30,4 @@ Linux development build: `cargo test --manifest-path desktop/Cargo.toml`, `cargo
 
 On the current Linux machine, one warm synthetic release-mode run with 10,000 in-memory messages averaged 7.2 µs per bounded history read and 7.7 µs per request JSON construction/serialization over 1,000 iterations. One isolated debug desktop launch showed the main process at 57,412 KiB RSS after four seconds; this excludes WebKit and other child processes, and the isolated desktop services logged warnings. These are small synthetic samples, not app-wide memory, startup, p95, end-to-end or cross-platform benchmarks. Provider latency and response quality vary and are not included.
 
-Keep this document current, log decisions and test results in `WORKLOG.md`, and make small commits. Never record credentials or private reasoning.
+
