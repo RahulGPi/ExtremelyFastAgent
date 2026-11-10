@@ -50,3 +50,8 @@
 - Added an inline chat-first terminal layout, help and searchable history, simple local `.env` loading, web-search progress and non-interactive output.
 - Added transactional FTS5 migration and triggers; relevant older questions are injected as timestamped historical context within the existing byte limit.
 - Eight tests pass, including backfill, update and delete index behavior; Clippy and a piped command smoke test pass. Live provider search remains affected by the previously observed HTTP 400 and was not retested. No full-screen navigation, semantic retrieval or comprehensive UI accessibility testing has been implemented.
+
+## Request failure investigation
+- Reproduced Groq 400: the previous default model requested a tool when tool choice was disabled after the search limit. Switched default to qwen/qwen3.8-27b, added explicit final-round instruction, and report provider error messages.
+- Another live request failed tool schema validation (missing query). Added one bounded retry for that specific error. Four searches with Qwen succeeded, one failed prior to the retry implementation; a subsequent live search passed. Small sample; no guarantee of reliability or citation support.
+- Eight unit tests and Clippy pass; citation verification remains outstanding.

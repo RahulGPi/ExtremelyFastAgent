@@ -111,7 +111,7 @@ async fn main() -> Result<()> {
     let tavily = config("TAVILY_API_KEY")
         .filter(|v| !v.is_empty())
         .context("Set TAVILY_API_KEY in .env or your environment")?;
-    let model = env::var("GROQ_MODEL").unwrap_or_else(|_| "openai/gpt-oss-20b".into());
+    let model = env::var("GROQ_MODEL").unwrap_or_else(|_| "qwen/qwen3.8-27b".into());
     let path = env::var("MIM_DB").unwrap_or_else(|_| "mim.db".into());
     let db = Connection::open(path)?;
     #[cfg(unix)]
@@ -238,22 +238,55 @@ async fn answer(
     messages: &mut Vec<Value>,
     provider_time: &mut Duration,
 ) -> Result<String> {
-    let tools = json!([{"type":"function","function":{"name":"web_search","description":"Search the web for current information","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}]);
+    let tools = json!([{"type":"function","function":{"name":"web_search","description":"Search the web for current information. Supply a query string.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}]);
     for round in 0..3 {
+        if round == 2 {
+            messages.push(json!({"role":"user", "content":"The search limit has been reached. Answer using the available results, or say if evidence is insufficient. Do not call a tool."}));
+        }
         let mut req =
             json!({"model":model,"messages":messages,"max_tokens":1024,"temperature":0.2});
         req["tools"] = tools.clone();
         if round >= 2 {
             req["tool_choice"] = json!("none");
         }
-        let request = client
-            .post("https://api.groq.com/openai/v1/chat/completions")
-            .bearer_auth(key)
-            .json(&req);
-        let started = Instant::now();
-        let outcome = async { request.send().await?.error_for_status()?.bytes().await }.await;
-        *provider_time += started.elapsed();
-        let response: Value = serde_json::from_slice(&outcome?)?;
+        let mut retry = 0;
+        let response: Value = loop {
+            let request = client
+                .post("https://api.groq.com/openai/v1/chat/completions")
+                .bearer_auth(key)
+                .json(&req);
+            let started = Instant::now();
+            let outcome = async {
+                let response = request.send().await?;
+                let status = response.status();
+                let body = response.bytes().await?;
+                Ok::<_, reqwest::Error>((status, body))
+            }
+            .await;
+            *provider_time += started.elapsed();
+            let (status, body) = outcome?;
+            let response: Value =
+                serde_json::from_slice(&body).context("Invalid inference response")?;
+            if status.is_success() {
+                break response;
+            }
+            let message = response
+                .pointer("/error/message")
+                .and_then(Value::as_str)
+                .unwrap_or("Provider request failed");
+            if status.as_u16() == 400
+                && message.contains("tool call validation failed")
+                && retry < 1
+            {
+                retry += 1;
+                eprintln!("Retrying an invalid tool call…");
+                continue;
+            }
+            bail!(
+                "Inference provider returned {status}: {}",
+                clean(truncate_utf8(message, 500))
+            );
+        };
         if let Some(usage) = response.get("usage") {
             eprintln!(
                 "Tokens: input {}, output {}",
