@@ -261,13 +261,14 @@ async fn main() -> Result<()> {
         if interactive {
             eprintln!("  Thinking…");
         }
+        let mut source_details = Vec::new();
         let request = answer(
             &client,
             &groq,
             &tavily,
             &model,
             &mut messages,
-            &mut provider_time,
+            (&mut provider_time, &mut source_details),
             wants_search(input),
         );
         let result = if interactive {
@@ -309,9 +310,10 @@ pub async fn answer(
     search_key: &str,
     model: &str,
     messages: &mut Vec<Value>,
-    provider_time: &mut Duration,
+    diagnostics: (&mut Duration, &mut Vec<Value>),
     require_search: bool,
 ) -> Result<String> {
+    let (provider_time, source_details) = diagnostics;
     let tools = json!([{"type":"function","function":{"name":"web_search","description":"Search the web for current information. Supply a query string.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}]);
     let mut sources: Vec<String> = Vec::new();
     let mut searched = false;
@@ -432,6 +434,7 @@ pub async fn answer(
                     }) && !sources.iter().any(|s| s == url)
                     {
                         sources.push(url.to_owned());
+                        source_details.push(entry.clone());
                     }
                 }
                 messages.push(json!({"role":"tool","tool_call_id":call["id"],"content":serde_json::to_string(&data)?}));

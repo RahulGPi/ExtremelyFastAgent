@@ -20,7 +20,7 @@ fn database() -> Result<Connection, String> {
     Ok(db)
 }
 #[tauri::command]
-async fn chat(text: String) -> Result<String, String> {
+async fn chat(text: String) -> Result<Value, String> {
     if text.trim().is_empty() || text.len() > 16000 {
         return Err("Enter a question of up to 16,000 bytes.".into());
     }
@@ -61,19 +61,20 @@ async fn chat(text: String) -> Result<String, String> {
         .build()
         .map_err(|e| e.to_string())?;
     let mut provider_time = Duration::ZERO;
+    let mut sources = Vec::new();
     let result = agent::answer(
         &client,
         &groq,
         &tavily,
         &model,
         &mut messages,
-        &mut provider_time,
+        (&mut provider_time, &mut sources),
         agent::wants_search(&text),
     )
     .await
     .map_err(|e| format!("{e:#}"))?;
     agent::save(&database()?, "assistant", &result).map_err(|e| e.to_string())?;
-    Ok(result)
+    Ok(json!({"answer":result,"sources":sources}))
 }
 #[tauri::command]
 fn history(query: String) -> Result<Vec<(String, String)>, String> {
@@ -93,9 +94,36 @@ fn history(query: String) -> Result<Vec<(String, String)>, String> {
         .map_err(|e| e.to_string())?;
     Ok(rows)
 }
+#[tauri::command]
+fn open_source(url: String) -> Result<(), String> {
+    let parsed = reqwest::Url::parse(&url).map_err(|_| "Invalid URL")?;
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err("Unsupported URL".into());
+    }
+    #[cfg(target_os = "linux")]
+    let program = "xdg-open";
+    #[cfg(target_os = "macos")]
+    let program = "open";
+    #[cfg(target_os = "windows")]
+    let program = "explorer";
+    std::process::Command::new(program)
+        .arg(parsed.as_str())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+#[tauri::command]
+fn close_window(window: tauri::Window) {
+    let _ = window.close();
+}
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![chat, history])
+        .invoke_handler(tauri::generate_handler![
+            chat,
+            history,
+            open_source,
+            close_window
+        ])
         .setup(|app| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.set_focus();

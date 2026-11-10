@@ -69,3 +69,8 @@
 - Added a Tauri window with a chat form, status, source text and searchable question history backed by the existing agent. Added an application icon and Linux build configuration.
 - GTK3 and WebKitGTK build dependencies were installed by the user. `cargo build --manifest-path desktop/Cargo.toml` passes; CLI tests and JavaScript syntax check pass. A sandboxed GUI launch could not access GTK; an unsandboxed timed launch produced no startup error, but interaction was not verified.
 - The requested notch overlay, global shortcut, cancellation, actual link handling, proper shared backend and cross-platform tests remain outstanding. This is a prototype, not the complete planned desktop experience.
+
+## Response formatting and source inspection
+- Removed the requested window and header chrome and footer. Added safe text-only Markdown rendering for headings, lists, bold, inline code and fenced code.
+- Desktop responses now receive actual search result URLs, titles and excerpts; clicking a passage shows matching cited results, while unlinked passages show an unverified notice. This is citation association, not claim-level verification or exact extraction provenance.
+- Ten CLI tests, Clippy, desktop compilation and JavaScript syntax checks pass. Interactive UI and external-link behavior have not yet been verified on the display.
