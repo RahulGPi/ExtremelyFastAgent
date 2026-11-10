@@ -12,3 +12,7 @@
 - `cargo test`: five tests pass, including bounded chronological history, UTC timestamps, and terminal control filtering.
 - CLI smoke test: `/history` and `/quit` work with an empty temporary database; database permissions were 600 on Linux.
 - `cargo clippy` and `cargo fmt` are unavailable in the installed toolchain. Live inference, search, and end-to-end verification remain untested without provider credentials.
+
+## Tooling
+- Installed matching Clippy and rustfmt binaries locally under ignored `.tools/` from the system distribution packages.
+- Formatted the Rust source; `cargo fmt -- --check`, `cargo clippy --all-targets -- -D warnings`, and all five tests pass using `.tools/usr/bin` on PATH.
