@@ -1,132 +1,68 @@
 # SOLO
 
-SOLO is a small desktop chat agent with web search, local conversation history, and an optional terminal interface. The desktop app uses Rust and Tauri; Groq is the primary model provider, Tavily supplies web search, and OpenRouter can be used as a backup.
+SOLO is a local chat agent that remembers past conversations and uses web search to check current information. This version runs on **Node.js**. It is designed for questions like “What did I ask last Tuesday?” and “Has the pricing changed since then?”
 
-**Status:** Linux has been built and smoke-tested on COSMIC Wayland. **macOS and Windows have not been built or tested**; the instructions below are intended starting points, not a compatibility guarantee. SOLO currently runs from source; installers and signed releases are not available.
+## Requirements
 
-## What you need
+- Node.js **22.13 or newer** and npm. SOLO uses Node's built-in experimental SQLite module; no database server is needed.
+- A Groq API key and a Tavily API key. An OpenRouter key is optional as a model-provider fallback.
+- Internet access for model inference and web search.
 
-- The project source on your computer and an internet connection to build and use the agent.
-- A recent stable [Rust toolchain](https://www.rust-lang.org/tools/install), including Cargo. The project was built with Rust 1.95.
-- A Groq API key and a Tavily API key. An OpenRouter API key is optional for fallback.
-- Platform-specific Tauri dependencies described below. See [Tauri's prerequisites](https://v2.tauri.app/start/prerequisites/) for other Linux distributions and up-to-date instructions.
+## Start
 
-## Linux
-
-On Ubuntu, Pop!_OS, or another Debian-based system, install the build dependencies:
+From the project directory:
 
 ```bash
-sudo apt update
-sudo apt install build-essential pkg-config curl wget file libssl-dev libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+npm install
+npm run dev
 ```
 
-Install Rust if necessary, then open a terminal in the project directory and run:
+Open **http://127.0.0.1:3000** in your browser. On the first run, create a `.env` file from `.env.example` and fill in the required API keys. On Linux or macOS:
 
 ```bash
-cd /path/to/mim_agent
-cargo run --manifest-path desktop/Cargo.toml
+cp .env.example .env
 ```
 
-For the local checkout on Rahul's laptop, the first command is `cd ~/Global_Programming/mim_agent`. The first build downloads and compiles dependencies and may take several minutes.
+On Windows PowerShell:
 
-## macOS — untested
+```powershell
+Copy-Item .env.example .env
+```
 
-1. Install [Rust](https://www.rust-lang.org/tools/install).
-2. Install Apple's command-line developer tools in Terminal:
-
-   ```bash
-   xcode-select --install
-   ```
-
-3. In Terminal, go to your copy of the project and run:
-
-   ```bash
-   cd /path/to/mim_agent
-   cargo run --manifest-path desktop/Cargo.toml
-   ```
-
-macOS development, shortcut behavior, signing, and packaging have not been verified. You may need to install additional prerequisites listed in the Tauri documentation.
-
-## Windows — untested
-
-1. Install [Rust](https://www.rust-lang.org/tools/install) using the Windows installer.
-2. Install [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with **Desktop development with C++**, and install the [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) if it isn't already present.
-3. Open PowerShell in your project directory and run:
-
-   ```powershell
-   cd C:\path\to\mim_agent
-   cargo run --manifest-path desktop/Cargo.toml
-   ```
-
-Windows development, shortcut behavior, file permissions, and packaging have not been verified. If Cargo isn't recognized after installing Rust, reopen PowerShell.
-
-## Configure API keys
-
-1. Open the desktop app and select **Settings**.
-2. Enter your **Groq** and **Tavily** keys. Enter an **OpenRouter** key if you want a backup provider.
-3. Select **Save keys**. Saved keys are not displayed again. Leaving a field blank keeps its existing value.
-
-Environment variables take precedence over saved settings. In a development checkout, settings are saved in `.env` in the project directory. The file is ignored by Git, but anyone who can read it can read the keys: don't post it or commit it. Data and keys are stored locally **without encryption**; on Unix the app restricts key-file and database permissions. Windows ACL behavior has not been verified.
-
-When the app is run outside a source checkout, its default data directory is:
-
-| Platform | Directory |
-| --- | --- |
-| Linux | `$XDG_CONFIG_HOME/SOLO`, or `~/.config/SOLO` if unset |
-| macOS | `~/Library/Application Support/SOLO` |
-| Windows | `%APPDATA%\SOLO` |
-
-The database is named `mim.db`. Set `MIM_DB` to override its location. Your messages, timestamps, and saved source excerpts are stored there.
+If `.env` already exists, edit it instead of replacing it. Restart the server after changing it. The `.env` file is ignored by Git; never share or commit your keys. Environment variables take precedence over `.env` values.
 
 ## Using SOLO
 
-- Type a question and press **Enter** to send; **Shift+Enter** inserts a new line.
-- **Sessions** lets you search, open, rename, and delete conversations. Every app launch starts a new session. The app creates a short title from the first question; if title generation fails, it keeps a local fallback. Reopened sessions currently display up to 200 messages.
-- Select an answer passage to inspect any source explicitly linked to it, or select **View all search sources**. A citation does not guarantee a claim is correct; unlinked passages are unverified.
-- **Stop** cancels a request locally. A provider may already have received or billed it.
-- Use the collapse button to shrink the window and click **SOLO** to reopen it. Alt+A toggles the window while it has focus. A top-center notch and automatic global shortcut setup are not yet implemented.
+Type a question and press Enter; Shift+Enter adds a line. Use **New chat** to start another session. The session panel supports search, rename, and delete. The app starts a new session when the browser page opens. Earlier messages remain available for cross-session recall.
 
-On COSMIC, a global shortcut can be configured manually in **Settings → Keyboard → Shortcuts**. Bind Alt+A to the absolute path of the built desktop executable followed by `--toggle`. For the debug build on Rahul's laptop:
+When you ask about a date or earlier topic, SOLO searches its local conversation history and includes matching questions and answers as context. For update requests it searches the web and compares current results with those records. Date interpretation uses the computer's local time zone; optionally set `TZ` in `.env` to an IANA time zone such as `Asia/Kolkata`. The exact time-zone behavior on Windows has not been tested.
 
-```text
-/home/rahulpai/Global_Programming/mim_agent/desktop/target/debug/mim-desktop --toggle
-```
+Click the source links under an answer to inspect them. A citation does **not** prove the corresponding claim is correct. If the agent cannot find prior history or verify current details, it should say so; retrieval and factual accuracy are not guaranteed.
 
-The global shortcut is not tested on macOS, Windows, or other Linux desktops.
+## Configuration and data
 
-## Optional terminal interface
+| Variable | Purpose |
+| --- | --- |
+| `GROQ_API_KEY` | Primary model provider key; required unless using OpenRouter |
+| `TAVILY_API_KEY` | Required for web search |
+| `OPENROUTER_API_KEY` | Optional backup model provider key |
+| `GROQ_MODEL` | Optional; defaults to `qwen/qwen3.8-27b` |
+| `OPENROUTER_MODEL` | Optional; defaults to `openrouter/free` |
+| `TZ` | Optional IANA time zone for interpreting dates |
+| `PORT` | Optional local server port; defaults to `3000` |
+| `SOLO_DB` | Optional SQLite database path; defaults to `solo-node.db` |
+| `SOLO_SKIP_LEGACY` | Set to any non-empty value to skip importing the earlier app's database |
 
-From the project directory:
+SOLO binds to `127.0.0.1` and stores chat history and retrieved sources in SQLite. The database and `.env` are **not encrypted**. On Unix the app restricts database permissions; Windows ACL behavior has not been tested. Do not expose the local server to untrusted networks. Conversations and retrieved evidence are sent to the selected model provider; search queries are sent to Tavily. OpenRouter may route requests to another provider, and paid model choices can incur charges.
 
-```bash
-cargo run --release
-```
+If an earlier Rust/Tauri `mim.db` is present in the project directory, its sessions, messages, timestamps, and saved sources are imported once into `solo-node.db`; the old database is left intact. Use `SOLO_SKIP_LEGACY=1` to disable this. The older Rust code remains in the repository for reference; **it is not needed to run this Node app**.
 
-The CLI requires the same Groq and Tavily keys in `.env` or environment variables. Use `/help`, `/history`, `/history search words`, and `/quit`. To print timing diagnostics on Linux or macOS:
-
-```bash
-MIM_PROFILE=1 cargo run --release
-```
-
-In PowerShell, use `$env:MIM_PROFILE="1"` before running Cargo.
-
-## Providers and reliability
-
-Groq is the default provider. If an OpenRouter key is configured, SOLO can switch to it after certain Groq failures. The default backup model is `openrouter/free`; its availability and rate limits can vary. Configure `GROQ_MODEL` or `OPENROUTER_MODEL` through environment variables to override models. A paid OpenRouter model may incur charges. Conversation context and search results are sent to the selected model provider; search queries go to Tavily.
-
-The agent can still produce incorrect or incomplete answers. Source-link checks are not claim-level fact verification. There are no built-in monetary budgets yet. A 429 error means the provider's rate limit was reached; SOLO retries some short waits, but longer limits may require waiting or changing the provider/account limits.
-
-## Development checks
-
-From the project directory:
+## Checks and limitations
 
 ```bash
-cargo test
-cargo test --manifest-path desktop/Cargo.toml
-cargo clippy --manifest-path desktop/Cargo.toml --all-targets -- -D warnings
-cargo build --manifest-path desktop/Cargo.toml
+npm test
 ```
 
-If Node.js is installed, run the source-link matching test with `node desktop/tests/sources.test.cjs`. Node.js is not required to run the current desktop app.
+Tests cover cross-session keyword recall, date-range retrieval, source URL matching, and legacy import. The agent uses keyword retrieval and an LLM to interpret dates, so paraphrases, ambiguous dates, or missing records can still cause errors. Source URL matching is not claim-by-claim verification. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
 
-For architecture, data handling, known gaps, and benchmark limitations, see [design.md](design.md). Development notes are in [WORKLOG.md](WORKLOG.md).
+The Node implementation was tested locally on Linux. macOS and Windows have not been tested. See [design.md](design.md) for the architecture and [WORKLOG.md](WORKLOG.md) for development notes.

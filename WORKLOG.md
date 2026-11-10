@@ -127,3 +127,8 @@
 ## Cross-platform preparation and performance
 - Preserved development checkout paths; packaged executables now use per-user SOLO directories on Linux, macOS and Windows. API settings use a same-directory tempfile for replacement, including Windows-compatible replacement semantics. macOS and Windows remain unbuilt and untested; Windows ACL behavior is not verified.
 - On Linux, 17 desktop tests, Clippy, source-link tests and desktop debug build pass. Warm synthetic release CLI benchmark (10,000 in-memory messages, 1,000 iterations): history 7.2 µs and JSON construction/serialization 7.7 µs mean. An isolated debug desktop launch had main-process RSS 57,412 KiB at four seconds, excluding WebKit children. Isolated desktop services emitted warnings; measurements are not production or cross-platform benchmarks.
+
+## Node.js dataset-oriented implementation
+- Added the primary Node.js browser app (`npm install`, `npm run dev`) and `.env.example`, using local SQLite, timestamped cross-session recall, model-assisted date interpretation, one Tavily search tool, and Groq/OpenRouter model providers. Existing Rust history is imported once where available.
+- Five Node memory tests pass; localhost session create/search/rename/delete smoke tests pass. A live test with a synthetic 3 November Neon question retrieved both prior turns, returned seven sources, and produced a comparison. This single test does not establish factual accuracy, date robustness, cost, or latency targets.
+- Browser UI is a new local web interface; native notch/global hotkey and desktop provider-progress events are not carried over. No macOS or Windows test was performed.
