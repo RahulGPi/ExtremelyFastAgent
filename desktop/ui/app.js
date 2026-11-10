@@ -134,3 +134,5 @@ document.querySelector('#api-settings').addEventListener('submit', async e => {
   try { await invoke('save_api_keys',{keys}); for (const field of document.querySelectorAll('#api-settings input')) field.value=''; await updateKeyStatus(); message.textContent='Keys saved.'; }
   catch(error) { message.textContent=String(error); }
 });
+
+window.__TAURI__.event.listen('session-title-updated', () => { if (!panel.hidden && !sessionList.querySelector('input')) refreshSessions().catch(e => status.textContent=String(e)); });

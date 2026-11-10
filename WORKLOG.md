@@ -119,3 +119,7 @@
 ## Shortcut visibility regression
 - The shortcut command launched a lingering SOLO process, but the user confirmed the new layer-shell window was invisible. Disabled the layer-shell integration and restored the previously visible normal window; the toggle bridge now explicitly shows the window before emitting its event.
 - Rebuilt and passed 16 desktop tests and Clippy. Stopped the old invisible instance so a subsequent shortcut launches the updated binary. Top-edge anchoring remains unfinished; the cause of the layer-shell visibility failure is not yet proven.
+
+## Concise automatic session titles
+- Added background generation of two-to-four-word titles based on the first question, with an immediate four-word local fallback and a conditional update that preserves manual renames.
+- A live title-generation test for the Pokémon filler question returned “Pokemon XY Filler Episodes.” Seventeen desktop tests, Clippy, UI syntax and build pass. The full GUI title refresh has not been interactively verified.
