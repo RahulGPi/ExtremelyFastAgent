@@ -15,3 +15,7 @@ For long chat history, retain timestamped original messages in SQLite and add an
 Cerebras is a candidate alternative to Groq, with an OpenAI-compatible chat API and documented tool calling for `zai-glm-4.7`: https://inference-docs.cerebras.ai/resources/glm-47-migration. Fireworks is another candidate: https://docs.fireworks.ai/. Neither is integrated or benchmarked here. Check model access, pricing and limits for the actual account, and compare time to first token, end-to-end latency, search tool compatibility and citation accuracy before switching. Never send credentials to an arbitrary configured endpoint.
 
 Set `MIM_PROFILE=1` to print per-turn elapsed time, time inside provider HTTP requests through response body receipt, and the remainder. The remainder includes local work, scheduling and terminal output; it is not a CPU-only measurement. Timing includes both successful and failed turns.
+
+## Chat and memory interface
+
+The interactive terminal displays a compact chat header and progress messages; redirected input uses plain output. `/help` lists commands and `/history [words]` searches previous user questions. API keys are read from the environment or a local `.env` file without executing it. SQLite FTS5 indexes existing and new messages; matching older questions are added with UTC timestamps within the existing history byte budget. Retrieval is lexical and can miss paraphrases. This is an inline terminal interface, not a full-screen TUI; terminal-native editing and scrolling apply.

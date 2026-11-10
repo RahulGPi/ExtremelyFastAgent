@@ -45,3 +45,8 @@
 - Release build, three sequential prompts, local temporary database: no-search answer total 1147.93 ms, HTTP 1137.69 ms, remainder 10.24 ms; SQLite search total 3472.78 ms, HTTP 3468.18 ms, remainder 4.60 ms; Python documentation search total 3083.66 ms, HTTP 3076.19 ms, remainder 7.47 ms.
 - Both search turns failed with HTTP 400 after two model requests; they are failed-turn measurements, not end-to-end successful search benchmarks. Provider HTTP includes transport and provider time, not just remote inference. Remainder includes all other wall time including disk, scheduling and terminal output. Small sample, not percentiles.
 - Added optional `MIM_PROFILE` instrumentation. Seven tests and Clippy pass. The model/tool error and citation verification remain unresolved.
+
+## Chat interface and memory retrieval
+- Added an inline chat-first terminal layout, help and searchable history, simple local `.env` loading, web-search progress and non-interactive output.
+- Added transactional FTS5 migration and triggers; relevant older questions are injected as timestamped historical context within the existing byte limit.
+- Eight tests pass, including backfill, update and delete index behavior; Clippy and a piped command smoke test pass. Live provider search remains affected by the previously observed HTTP 400 and was not retested. No full-screen navigation, semantic retrieval or comprehensive UI accessibility testing has been implemented.
