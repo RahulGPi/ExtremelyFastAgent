@@ -267,13 +267,14 @@ async fn main() -> Result<()> {
             eprintln!("  Thinking…");
         }
         let mut source_details = Vec::new();
+        let mut used_backup = false;
         let request = answer(
             &client,
             &groq,
             &tavily,
             &model,
             &mut messages,
-            (&mut provider_time, &mut source_details),
+            (&mut provider_time, &mut source_details, &mut used_backup),
             wants_search(input),
         );
         let result = if interactive {
@@ -315,10 +316,12 @@ pub async fn answer(
     search_key: &str,
     model: &str,
     messages: &mut Vec<Value>,
-    diagnostics: (&mut Duration, &mut Vec<Value>),
+    diagnostics: (&mut Duration, &mut Vec<Value>, &mut bool),
     require_search: bool,
 ) -> Result<String> {
-    let (provider_time, source_details) = diagnostics;
+    let (provider_time, source_details, used_backup) = diagnostics;
+    let backup_key = config("OPENROUTER_API_KEY").filter(|s| !s.is_empty());
+    let backup_model = config("OPENROUTER_MODEL").unwrap_or_else(|| "openrouter/free".into());
     let tools = json!([{"type":"function","function":{"name":"web_search","description":"Search the web for current information. Supply a query string.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}]);
     let mut sources: Vec<String> = Vec::new();
     let mut searched = false;
@@ -337,10 +340,18 @@ pub async fn answer(
         let mut retry = 0;
         let mut rate_retry = false;
         let response: Value = loop {
-            let request = client
-                .post("https://api.groq.com/openai/v1/chat/completions")
-                .bearer_auth(key)
-                .json(&req);
+            if *used_backup {
+                req["model"] = json!(backup_model);
+            }
+            let (endpoint, api_key) = if *used_backup {
+                (
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    backup_key.as_deref().unwrap_or(""),
+                )
+            } else {
+                ("https://api.groq.com/openai/v1/chat/completions", key)
+            };
+            let request = client.post(endpoint).bearer_auth(api_key).json(&req);
             let started = Instant::now();
             let outcome = async {
                 let response = request.send().await?;
@@ -355,7 +366,15 @@ pub async fn answer(
             }
             .await;
             *provider_time += started.elapsed();
-            let (status, retry_after, body) = outcome?;
+            let (status, retry_after, body) = match outcome {
+                Ok(value) => value,
+                Err(_err) if !*used_backup && backup_key.is_some() => {
+                    *used_backup = true;
+                    eprintln!("  Groq unavailable; switching to OpenRouter.");
+                    continue;
+                }
+                Err(err) => return Err(err.into()),
+            };
             let response: Value =
                 serde_json::from_slice(&body).context("Invalid inference response")?;
             if status.is_success() {
@@ -377,6 +396,17 @@ pub async fn answer(
                 rate_retry = true;
                 eprintln!("  Rate limited; retrying shortly…");
                 tokio::time::sleep(retry_delay(retry_after).unwrap()).await;
+                continue;
+            }
+            if !*used_backup
+                && backup_key.is_some()
+                && (status.as_u16() == 429
+                    || status.is_server_error()
+                    || status.as_u16() == 401
+                    || (status.as_u16() == 400 && message.contains("tool call")))
+            {
+                *used_backup = true;
+                eprintln!("  Groq unavailable; switching to OpenRouter.");
                 continue;
             }
             bail!(

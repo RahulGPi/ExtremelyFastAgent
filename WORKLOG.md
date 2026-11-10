@@ -78,3 +78,8 @@
 ## Rate-limit handling
 - Increased the bounded Retry-After window from two to 20 seconds, with one retry per inference call. Missing, invalid or longer delays still surface the error; no unbounded retry is performed.
 - Eleven tests, Clippy and the desktop build pass. Live rate-limit behavior was not reproduced during this change.
+
+## OpenRouter backup
+- Added OpenRouter fallback on selected Groq failures while retaining tool-call context and source checks. Uses configured key and `OPENROUTER_MODEL`, default `openrouter/free`.
+- Live forced-fallback tests: the original free model slug was unavailable; a specific free endpoint returned 429; `openrouter/free` answered a simple prompt and invoked web search. The search output was rejected by the source guard and displayed links, so factual answer quality remains unverified.
+- Eleven unit tests, Clippy, desktop build and JavaScript syntax check pass.

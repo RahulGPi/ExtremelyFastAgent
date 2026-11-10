@@ -62,19 +62,22 @@ async fn chat(text: String) -> Result<Value, String> {
         .map_err(|e| e.to_string())?;
     let mut provider_time = Duration::ZERO;
     let mut sources = Vec::new();
+    let mut used_backup = false;
     let result = agent::answer(
         &client,
         &groq,
         &tavily,
         &model,
         &mut messages,
-        (&mut provider_time, &mut sources),
+        (&mut provider_time, &mut sources, &mut used_backup),
         agent::wants_search(&text),
     )
     .await
     .map_err(|e| format!("{e:#}"))?;
     agent::save(&database()?, "assistant", &result).map_err(|e| e.to_string())?;
-    Ok(json!({"answer":result,"sources":sources}))
+    Ok(
+        json!({"answer":result,"sources":sources,"provider":if used_backup {"OpenRouter backup"} else {"Groq"}}),
+    )
 }
 #[tauri::command]
 fn history(query: String) -> Result<Vec<(String, String)>, String> {

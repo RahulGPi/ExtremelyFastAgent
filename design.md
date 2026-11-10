@@ -33,3 +33,7 @@ Requests explicitly asking to find or search information, plus common freshness 
 Desktop responses render common Markdown without interpreting model-supplied HTML. Selecting an answer passage opens explicitly cited search results and their returned excerpts; passages without a matching citation are labeled unverified. A citation points to a returned result but is not proof the source supports the passage. The native title bar and introductory header are removed; a close control remains inside the app.
 
 Inference 429 responses with a valid `Retry-After` of at most 20 seconds are retried once; longer or missing delays are reported to the user. This reduces transient failures but does not increase provider quotas.
+
+## Inference fallback
+
+Groq remains primary. When configured with `OPENROUTER_API_KEY`, the agent switches to OpenRouter on Groq connection failures, rate limits after any short retry, server errors, authentication errors, or rejected tool calls. The default backup model is `openrouter/free`; `OPENROUTER_MODEL` can override it. The CLI reports the switch; desktop labels responses using the backup. Conversation context and search results are sent to OpenRouter and its routed provider when the fallback is used. Free model availability and limits vary; choosing a paid override can incur charges.
