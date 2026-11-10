@@ -96,3 +96,7 @@
 - New assistant answers and source metadata are committed together; the UI restores recent messages and sources. Old answers lack source metadata and remain unverified.
 - Added a Stop button that cancels the in-flight request locally. Cancellation cannot guarantee a remote provider stops processing or billing.
 - Desktop tests include closing and reopening a database with source metadata. Thirteen tests, desktop Clippy, JavaScript syntax and build pass. GUI cancellation and source restoration need interactive testing. Notch positioning and system-wide shortcut remain unimplemented; this session's COSMIC portal does not advertise global shortcuts.
+
+## Desktop sessions
+- Added a new session per app launch, a searchable Sessions panel, rename and confirmed deletion, and session-scoped model history. Prior messages migrate into Earlier conversations; stored citations remain linked to their messages.
+- Fourteen desktop tests (including idempotent legacy migration), desktop Clippy, JavaScript syntax and desktop build pass. Session UI and destructive delete behavior have not been interactively tested; reopened views currently load up to 200 messages.

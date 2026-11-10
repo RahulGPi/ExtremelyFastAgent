@@ -43,3 +43,7 @@ The desktop sends live, content-free progress events for Groq, retries, fallback
 Source inspection matches whole URLs rather than substrings; passages without an explicit matching citation remain unverified. The desktop can also display all retrieved search results, which are not automatically evidence for every claim. Source metadata is not persisted with past messages.
 
 New desktop assistant messages and their retrieved source metadata are stored together in SQLite and the latest 50 messages are restored on startup. Existing messages have no recovered source metadata. The Stop button cancels an in-flight local request; a provider may already have received or billed it. The notch overlay and global Alt+A shortcut remain unimplemented on COSMIC Wayland.
+
+## Desktop sessions
+
+A new desktop session is created on each launch; the Sessions panel supports search by title or message text, reopening, rename and confirmed deletion. The first user question becomes the default title. Pre-session messages are assigned to an Earlier conversations session without modifying source metadata. Desktop model context is limited to the selected session; it does not automatically recall other sessions. Up to 200 messages are displayed when reopening a session.
