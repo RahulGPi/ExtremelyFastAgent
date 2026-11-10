@@ -14,14 +14,38 @@ fn clean(s: &str) -> String {
         .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
         .collect()
 }
-fn history(db: &Connection) -> Result<Vec<Value>> {
-    let mut stmt = db.prepare("SELECT role, content FROM (SELECT id, role, content FROM messages ORDER BY id DESC LIMIT 12) ORDER BY id")?;
-    Ok(stmt
-        .query_map([], |r| {
-            Ok(json!({"role":r.get::<_, String>(0)?, "content":r.get::<_, String>(1)?}))
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?)
+// Byte limits are deterministic memory bounds, not estimates of model tokens.
+const HISTORY_BYTES: usize = 24_000;
+const SEARCH_RESULTS: usize = 3;
+const SEARCH_CONTENT_BYTES: usize = 800;
+
+fn truncate_utf8(s: &str, max_bytes: usize) -> &str {
+    let mut end = s.len().min(max_bytes);
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
 }
+fn history(db: &Connection) -> Result<Vec<Value>> {
+    let mut stmt = db.prepare("SELECT role, content FROM messages ORDER BY id DESC LIMIT 12")?;
+    let mut rows = stmt.query([])?;
+    let mut messages = Vec::new();
+    let mut used = 0;
+    while let Some(row) = rows.next()? {
+        let role: String = row.get(0)?;
+        let content: String = row.get(1)?;
+        let size = role.len() + content.len();
+        // Preserve the newest message in full; input length is checked before saving.
+        if !messages.is_empty() && used + size > HISTORY_BYTES {
+            break;
+        }
+        used += size;
+        messages.push(json!({"role": role, "content": content}));
+    }
+    messages.reverse();
+    Ok(messages)
+}
+
 fn save(db: &Connection, role: &str, content: &str) -> Result<()> {
     db.execute(
         "INSERT INTO messages (role, content, created_at) VALUES (?1, ?2, ?3)",
@@ -140,13 +164,13 @@ async fn answer(
                 let result = client
                     .post("https://api.tavily.com/search")
                     .bearer_auth(search_key)
-                    .json(&json!({"query":q,"search_depth":"fast","max_results":5}))
+                    .json(&json!({"query":q,"search_depth":"fast","max_results":SEARCH_RESULTS}))
                     .send()
                     .await?
                     .error_for_status()?
                     .json::<Value>()
                     .await?;
-                let data = result["results"].as_array().cloned().unwrap_or_default().into_iter().take(5).map(|v| json!({"title":v["title"],"url":v["url"],"content":v["content"].as_str().unwrap_or("").chars().take(1500).collect::<String>()})).collect::<Vec<_>>();
+                let data = result["results"].as_array().cloned().unwrap_or_default().into_iter().take(SEARCH_RESULTS).map(|v| json!({"title":truncate_utf8(v["title"].as_str().unwrap_or(""), 300), "url":truncate_utf8(v["url"].as_str().unwrap_or(""), 2048), "content":truncate_utf8(v["content"].as_str().unwrap_or(""), SEARCH_CONTENT_BYTES)})).collect::<Vec<_>>();
                 messages.push(json!({"role":"tool","tool_call_id":call["id"],"content":serde_json::to_string(&data)?}));
             }
         } else {
@@ -189,6 +213,22 @@ mod behavior_tests {
         assert_eq!(messages.len(), 12);
         assert_eq!(messages[0]["content"], "3");
         assert_eq!(messages[11]["content"], "14");
+    }
+    #[test]
+    fn history_budget_keeps_newest_messages_intact() {
+        let db = database();
+        save(&db, "user", &"x".repeat(15_000)).unwrap();
+        save(&db, "assistant", &"y".repeat(15_000)).unwrap();
+        save(&db, "user", "latest").unwrap();
+        let messages = history(&db).unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[1]["content"], "latest");
+        assert_eq!(messages[0]["role"], "assistant");
+    }
+    #[test]
+    fn truncation_preserves_utf8_boundaries() {
+        assert_eq!(truncate_utf8("a🌍b", 4), "a");
+        assert_eq!(truncate_utf8("a🌍b", 5), "a🌍");
     }
     #[test]
     fn messages_have_valid_utc_timestamps() {

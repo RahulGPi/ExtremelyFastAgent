@@ -1,6 +1,6 @@
 # Architecture
 
-Rust CLI with SQLite history, Groq inference and one Tavily web-search tool. Connections are reused and requests have timeouts. Search content is untrusted. Messages are timestamped in UTC and recent history is bounded. API keys come from environment variables, never logs. Local database permissions are restricted on Unix.
+Rust CLI with SQLite history, Groq inference and one Tavily web-search tool. Connections are reused and requests have timeouts. Search content is untrusted. Messages are timestamped in UTC and recent history is bounded to 12 messages and 24,000 content bytes (the newest message is preserved), and each search call returns at most three excerpts of 800 UTF-8 bytes each. These byte limits are not exact token limits; older messages remain in SQLite but are not yet retrieved by relevance. API keys come from environment variables, never logs. Local database permissions are restricted on Unix.
 
 The initial implementation limits tool calls and response tokens; it displays provider-reported token usage. It does not yet enforce monetary budgets, independently verify sources, stream responses, or search older history. Answers must identify uncertainty and cite retrieved sources, but citations are not automatically validated. These are priorities for the next stage, along with provider adapters and latency benchmarks.
 
