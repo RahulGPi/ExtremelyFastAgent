@@ -274,7 +274,12 @@ async fn main() -> Result<()> {
             &tavily,
             &model,
             &mut messages,
-            (&mut provider_time, &mut source_details, &mut used_backup),
+            (
+                &mut provider_time,
+                &mut source_details,
+                &mut used_backup,
+                &|_| {},
+            ),
             wants_search(input),
         );
         let result = if interactive {
@@ -310,16 +315,24 @@ async fn main() -> Result<()> {
     }
     Ok(())
 }
+type Diagnostics<'a> = (
+    &'a mut Duration,
+    &'a mut Vec<Value>,
+    &'a mut bool,
+    &'a (dyn Fn(&str) + Send + Sync),
+);
+
 pub async fn answer(
     client: &Client,
     key: &str,
     search_key: &str,
     model: &str,
     messages: &mut Vec<Value>,
-    diagnostics: (&mut Duration, &mut Vec<Value>, &mut bool),
+    diagnostics: Diagnostics<'_>,
     require_search: bool,
 ) -> Result<String> {
-    let (provider_time, source_details, used_backup) = diagnostics;
+    let (provider_time, source_details, used_backup, progress) = diagnostics;
+    progress("groq");
     let backup_key = config("OPENROUTER_API_KEY").filter(|s| !s.is_empty());
     let backup_model = config("OPENROUTER_MODEL").unwrap_or_else(|| "openrouter/free".into());
     let tools = json!([{"type":"function","function":{"name":"web_search","description":"Search the web for current information. Supply a query string.","parameters":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}}}]);
@@ -370,6 +383,7 @@ pub async fn answer(
                 Ok(value) => value,
                 Err(_err) if !*used_backup && backup_key.is_some() => {
                     *used_backup = true;
+                    progress("fallback");
                     eprintln!("  Groq unavailable; switching to OpenRouter.");
                     continue;
                 }
@@ -389,11 +403,13 @@ pub async fn answer(
                 && retry < 1
             {
                 retry += 1;
+                progress("retry");
                 eprintln!("Retrying an invalid tool call…");
                 continue;
             }
             if status.as_u16() == 429 && !rate_retry && retry_delay(retry_after).is_some() {
                 rate_retry = true;
+                progress("rate_limit");
                 eprintln!("  Rate limited; retrying shortly…");
                 tokio::time::sleep(retry_delay(retry_after).unwrap()).await;
                 continue;
@@ -406,6 +422,7 @@ pub async fn answer(
                     || (status.as_u16() == 400 && message.contains("tool call")))
             {
                 *used_backup = true;
+                progress("fallback");
                 eprintln!("  Groq unavailable; switching to OpenRouter.");
                 continue;
             }
@@ -445,6 +462,7 @@ pub async fn answer(
                 if q.len() > 500 || q.is_empty() {
                     bail!("Invalid search query");
                 }
+                progress("search");
                 if io::stderr().is_terminal() {
                     eprintln!("  Searching the web…");
                 }
@@ -472,6 +490,7 @@ pub async fn answer(
                 messages.push(json!({"role":"tool","tool_call_id":call["id"],"content":serde_json::to_string(&data)?}));
             }
         } else {
+            progress("answer");
             return Ok(supported_answer(
                 msg["content"].as_str().unwrap_or(""),
                 &sources,

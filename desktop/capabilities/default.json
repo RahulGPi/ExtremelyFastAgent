@@ -1,0 +1,1 @@
+{"identifier":"main-capability","description":"Core event access for the main chat window","windows":["main"],"permissions":["core:default"]}

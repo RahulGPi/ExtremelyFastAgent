@@ -37,3 +37,5 @@ Inference 429 responses with a valid `Retry-After` of at most 20 seconds are ret
 ## Inference fallback
 
 Groq remains primary. When configured with `OPENROUTER_API_KEY`, the agent switches to OpenRouter on Groq connection failures, rate limits after any short retry, server errors, authentication errors, or rejected tool calls. The default backup model is `openrouter/free`; `OPENROUTER_MODEL` can override it. The CLI reports the switch; desktop labels responses using the backup. Conversation context and search results are sent to OpenRouter and its routed provider when the fallback is used. Free model availability and limits vary; choosing a paid override can incur charges.
+
+The desktop sends live, content-free progress events for Groq, retries, fallback to OpenRouter, search and answer preparation. The status keeps the Groq-to-OpenRouter sequence visible during fallback; completed backup responses retain an OpenRouter label.

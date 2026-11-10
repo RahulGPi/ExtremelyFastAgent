@@ -5,7 +5,7 @@ mod agent;
 use rusqlite::Connection;
 use serde_json::{Value, json};
 use std::{env, time::Duration};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 fn database() -> Result<Connection, String> {
     let path = env::var("MIM_DB").unwrap_or_else(|_| "mim.db".into());
@@ -20,7 +20,7 @@ fn database() -> Result<Connection, String> {
     Ok(db)
 }
 #[tauri::command]
-async fn chat(text: String) -> Result<Value, String> {
+async fn chat(app: tauri::AppHandle, text: String) -> Result<Value, String> {
     if text.trim().is_empty() || text.len() > 16000 {
         return Err("Enter a question of up to 16,000 bytes.".into());
     }
@@ -63,13 +63,21 @@ async fn chat(text: String) -> Result<Value, String> {
     let mut provider_time = Duration::ZERO;
     let mut sources = Vec::new();
     let mut used_backup = false;
+    let progress = |step: &str| {
+        let _ = app.emit("agent-progress", step);
+    };
     let result = agent::answer(
         &client,
         &groq,
         &tavily,
         &model,
         &mut messages,
-        (&mut provider_time, &mut sources, &mut used_backup),
+        (
+            &mut provider_time,
+            &mut sources,
+            &mut used_backup,
+            &progress,
+        ),
         agent::wants_search(&text),
     )
     .await

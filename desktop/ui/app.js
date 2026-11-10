@@ -1,5 +1,19 @@
 const invoke = window.__TAURI__.core.invoke;
 const form = document.querySelector('#form'), input = document.querySelector('#input'), messages = document.querySelector('#messages'), status = document.querySelector('#status'), send = document.querySelector('#send'), evidence = document.querySelector('#evidence'), sourceList = document.querySelector('#source-list');
+let active = false;
+let currentProvider = 'Groq';
+const progressLabel = () => currentProvider === 'OpenRouter' ? '1 · Groq unavailable  →  2 · OpenRouter' : '1 · Groq';
+const progressReady = window.__TAURI__.event.listen('agent-progress', event => {
+  if (!active) return;
+  switch (event.payload) {
+    case 'groq': currentProvider = 'Groq'; status.textContent = '1 · Groq — thinking…'; break;
+    case 'retry': status.textContent = `${progressLabel()} — retrying an invalid tool call…`; break;
+    case 'rate_limit': status.textContent = `${progressLabel()} — rate limited, waiting to retry…`; break;
+    case 'fallback': currentProvider = 'OpenRouter'; status.textContent = '1 · Groq unavailable  →  2 · OpenRouter — thinking…'; break;
+    case 'search': status.textContent = `${progressLabel()} — searching the web…`; break;
+    case 'answer': status.textContent = `${progressLabel()} — preparing answer…`; break;
+  }
+});
 function showSources(sources) {
   sourceList.replaceChildren();
   if (!sources.length) { sourceList.textContent = 'No source was linked to this passage. It has not been verified.'; }
@@ -47,7 +61,7 @@ function add(role, value, sources = null) {
   if (sources !== null) { const note = document.createElement('div'); note.className = 'source-note'; note.textContent = 'Select a passage to inspect its linked sources. Unlinked passages are unverified.'; el.append(note); }
   messages.append(el); messages.scrollTop = messages.scrollHeight;
 }
-form.addEventListener('submit', async e => { e.preventDefault(); const text = input.value.trim(); if (!text || send.disabled) return; add('You', text); input.value = ''; send.disabled = true; status.textContent = 'Thinking · searching if needed…'; try { const result = await invoke('chat', { text }); add(result.provider === 'OpenRouter backup' ? 'mim · OpenRouter backup' : 'mim', result.answer, result.sources); } catch (error) { add('Could not complete request', String(error)); } finally { send.disabled = false; status.textContent = ''; input.focus(); } });
+form.addEventListener('submit', async e => { e.preventDefault(); const text = input.value.trim(); if (!text || send.disabled) return; add('You', text); input.value = ''; send.disabled = true; active = true; status.textContent = '1 · Groq — starting…'; try { await progressReady; const result = await invoke('chat', { text }); add(result.provider === 'OpenRouter backup' ? 'mim · OpenRouter backup' : 'mim', result.answer, result.sources); } catch (error) { add('Could not complete request', String(error)); } finally { active = false; send.disabled = false; status.textContent = ''; input.focus(); } });
 input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); } });
 document.querySelector('#close-evidence').addEventListener('click', () => { evidence.hidden = true; });
 document.querySelector('#close').addEventListener('click', () => invoke('close_window'));

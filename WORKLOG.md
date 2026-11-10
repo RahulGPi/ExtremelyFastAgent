@@ -83,3 +83,7 @@
 - Added OpenRouter fallback on selected Groq failures while retaining tool-call context and source checks. Uses configured key and `OPENROUTER_MODEL`, default `openrouter/free`.
 - Live forced-fallback tests: the original free model slug was unavailable; a specific free endpoint returned 429; `openrouter/free` answered a simple prompt and invoked web search. The search output was rejected by the source guard and displayed links, so factual answer quality remains unverified.
 - Eleven unit tests, Clippy, desktop build and JavaScript syntax check pass.
+
+## Provider progress in desktop UI
+- Added live status events from the agent to the desktop window, including Groq, retries, rate-limit waits, OpenRouter fallback, web search and answer preparation. No prompts or credentials are included in events.
+- Eleven tests, Clippy, desktop build and JavaScript syntax check pass. Progress rendering and event delivery have not been exercised interactively in a GUI session.
