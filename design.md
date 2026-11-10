@@ -7,3 +7,9 @@ The initial implementation limits tool calls and response tokens; it displays pr
 Use `GROQ_API_KEY`, `TAVILY_API_KEY`, optionally `GROQ_MODEL` and `MIM_DB`; run `cargo run`. `/history` shows stored user messages and timestamps; `/quit` exits. Searches and conversation text are sent to the respective providers.
 
 Development rule: keep this document current, record concise decisions and test results in WORKLOG.md, and commit and push small coherent stages when the repository and network permissions allow. Never record secrets or private reasoning.
+
+## Research: long history and inference alternatives
+
+For long chat history, retain timestamped original messages in SQLite and add an external-content FTS5 index, backfilled on migration and maintained with triggers. Retrieve a small set of relevant old messages plus recent turns under a shared context budget, with timestamps; test recall and storage costs before rollout. FTS is lexical, so paraphrases may be missed. Consider embeddings only if retrieval evaluation shows a material gap; they add model, index, latency and operational costs. See https://www.sqlite.org/fts5.html.
+
+Cerebras is a candidate alternative to Groq, with an OpenAI-compatible chat API and documented tool calling for `zai-glm-4.7`: https://inference-docs.cerebras.ai/resources/glm-47-migration. Fireworks is another candidate: https://docs.fireworks.ai/. Neither is integrated or benchmarked here. Check model access, pricing and limits for the actual account, and compare time to first token, end-to-end latency, search tool compatibility and citation accuracy before switching. Never send credentials to an arbitrary configured endpoint.

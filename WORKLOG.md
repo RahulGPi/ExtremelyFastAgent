@@ -31,3 +31,7 @@
 ## Context control
 - Three research agents assessed retrieval, compression and token budgeting. Implemented a 24,000-byte recent-history limit and at most three 800-byte search excerpts per call, with UTF-8-safe truncation. Original history is retained in SQLite. Byte caps are not token caps; retrieval of older relevant messages and token-accurate budgets remain future work.
 - Seven unit tests and Clippy pass, including history size and Unicode boundaries. A live search had 194 input tokens initially and 913 after its first search (a prior run had 1,563 at that stage, but results and model decisions vary). The final model request returned HTTP 400, so answer quality and full-turn latency remain unverified. The `cargo run` timing included compilation and is not a valid runtime/RSS benchmark.
+
+## Long-history and inference research
+- A synthetic temporary SQLite database of 100,000 repetitive messages used 9.76 MiB; adding an external-content FTS5 index increased it to 14.51 MiB. Two warm ranked searches with terms present in every message took 61 and 72 ms. This is not a representative benchmark or a comparison with a production corpus.
+- Recommended SQLite external-content FTS5 for lexical recall and Cerebras as the first inference alternative to benchmark. Neither has been integrated or live-tested; provider access and pricing remain to be checked.
