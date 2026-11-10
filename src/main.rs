@@ -245,3 +245,39 @@ mod behavior_tests {
         assert_eq!(clean("hi\x1b]0;title\x07\nnext\r"), "hi]0;title\nnext");
     }
 }
+
+#[cfg(test)]
+mod local_latency_tests {
+    use super::*;
+    use std::time::Instant;
+
+    #[test]
+    #[ignore = "manual local latency benchmark"]
+    fn profile_history_and_request_construction() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute("CREATE TABLE messages (id INTEGER PRIMARY KEY, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL)", []).unwrap();
+        let text = "a".repeat(1_000);
+        for _ in 0..10_000 {
+            save(&db, "user", &text).unwrap();
+        }
+        let iterations = 1_000;
+        let start = Instant::now();
+        for _ in 0..iterations {
+            std::hint::black_box(history(&db).unwrap());
+        }
+        println!(
+            "history_10k_rows_mean_us={:.1}",
+            start.elapsed().as_secs_f64() * 1_000_000.0 / iterations as f64
+        );
+        let messages = history(&db).unwrap();
+        let start = Instant::now();
+        for _ in 0..iterations {
+            let req = json!({"model":"example", "messages":messages, "max_tokens":1024, "temperature":0.2});
+            std::hint::black_box(serde_json::to_vec(&req).unwrap());
+        }
+        println!(
+            "request_build_and_serialize_mean_us={:.1}",
+            start.elapsed().as_secs_f64() * 1_000_000.0 / iterations as f64
+        );
+    }
+}

@@ -35,3 +35,8 @@
 ## Long-history and inference research
 - A synthetic temporary SQLite database of 100,000 repetitive messages used 9.76 MiB; adding an external-content FTS5 index increased it to 14.51 MiB. Two warm ranked searches with terms present in every message took 61 and 72 ms. This is not a representative benchmark or a comparison with a production corpus.
 - Recommended SQLite external-content FTS5 for lexical recall and Cerebras as the first inference alternative to benchmark. Neither has been integrated or live-tested; provider access and pricing remain to be checked.
+
+## Application-only latency
+- Added an opt-in local release-mode benchmark (`cargo test --release profile_history_and_request_construction -- --ignored --nocapture`). With 10,000 synthetic 1 KB messages in an in-memory SQLite database, 1,000 iterations averaged 7.3 µs for bounded history reads and 9.2 µs for JSON request construction and serialization. Warm synthetic measurements, not production percentiles.
+- Separately, 30 SQLite autocommit writes of 1 KB to /tmp via a Python harness had median 3.17 ms and p95 4.41 ms; filesystem and durability settings strongly affect results. These were not measurements of the Rust app's database path.
+- No provider calls included. Local code observations: synchronous durable writes occur twice per successful turn, the JSON tree is cloned and serialized on each model round, result arrays are cloned, searches are serial, and no response streaming is implemented. The last two affect end-to-end or perceived time but require separate measurement. Current local timings do not justify weakening durability.
