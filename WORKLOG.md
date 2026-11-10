@@ -55,3 +55,7 @@
 - Reproduced Groq 400: the previous default model requested a tool when tool choice was disabled after the search limit. Switched default to qwen/qwen3.8-27b, added explicit final-round instruction, and report provider error messages.
 - Another live request failed tool schema validation (missing query). Added one bounded retry for that specific error. Four searches with Qwen succeeded, one failed prior to the retry implementation; a subsequent live search passed. Small sample; no guarantee of reliability or citation support.
 - Eight unit tests and Clippy pass; citation verification remains outstanding.
+
+## Terminal experience
+- Added terminal line editing with in-session input history, clear help, request cancellation, and quieter token diagnostics. Piped input retains line-oriented behavior; no separate history file stores inputs.
+- Eight tests and Clippy pass. PTY smoke test confirmed startup and help; the test environment's terminal did not support reliable arrow-key verification. No live provider calls were needed for this change.

@@ -21,3 +21,5 @@ Set `MIM_PROFILE=1` to print per-turn elapsed time, time inside provider HTTP re
 The interactive terminal displays a compact chat header and progress messages; redirected input uses plain output. `/help` lists commands and `/history [words]` searches previous user questions. API keys are read from the environment or a local `.env` file without executing it. SQLite FTS5 indexes existing and new messages; matching older questions are added with UTC timestamps within the existing history byte budget. Retrieval is lexical and can miss paraphrases. This is an inline terminal interface, not a full-screen TUI; terminal-native editing and scrolling apply.
 
 Default Groq model is `qwen/qwen3.8-27b` (overridable via `GROQ_MODEL`). The agent retries one provider-rejected malformed tool call and enforces its existing search-round limit; provider errors are displayed without dumping raw response bodies.
+
+Interactive input uses line editing and in-session input history on supported terminals. Ctrl+C clears input or cancels an active request; Ctrl+D exits. Piped input keeps the simple line-oriented mode. Usage counts are shown when `MIM_PROFILE` is set.
