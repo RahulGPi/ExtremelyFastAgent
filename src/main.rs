@@ -58,3 +58,34 @@ async fn answer(client: &Client, key: &str, search_key: &str, model: &str, messa
     } bail!("Model did not produce an answer")
 }
 #[cfg(test)] mod tests { use super::*; #[test] fn strips_terminal_controls() { assert_eq!(clean("a\x1b[31m"),"a[31m"); } #[test] fn saves_history_in_order() { let db=Connection::open_in_memory().unwrap(); db.execute("CREATE TABLE messages (id INTEGER PRIMARY KEY, role TEXT, content TEXT, created_at TEXT)",[]).unwrap(); save(&db,"user","hello").unwrap(); assert_eq!(history(&db).unwrap()[0]["content"],"hello"); } }
+
+#[cfg(test)]
+mod behavior_tests {
+    use super::*;
+    fn database() -> Connection {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute("CREATE TABLE messages (id INTEGER PRIMARY KEY, role TEXT NOT NULL, content TEXT NOT NULL, created_at TEXT NOT NULL)", []).unwrap();
+        db
+    }
+    #[test]
+    fn history_keeps_only_latest_twelve_in_chronological_order() {
+        let db = database();
+        for n in 0..15 { save(&db, "user", &n.to_string()).unwrap(); }
+        let messages = history(&db).unwrap();
+        assert_eq!(messages.len(), 12);
+        assert_eq!(messages[0]["content"], "3");
+        assert_eq!(messages[11]["content"], "14");
+    }
+    #[test]
+    fn messages_have_valid_utc_timestamps() {
+        let db = database();
+        save(&db, "user", "what did I ask?").unwrap();
+        let stamp: String = db.query_row("SELECT created_at FROM messages", [], |r| r.get(0)).unwrap();
+        let parsed = chrono::DateTime::parse_from_rfc3339(&stamp).unwrap();
+        assert_eq!(parsed.offset().local_minus_utc(), 0);
+    }
+    #[test]
+    fn terminal_escape_and_c0_controls_are_removed() {
+        assert_eq!(clean("hi\x1b]0;title\x07\nnext\r"), "hi]0;title\nnext");
+    }
+}

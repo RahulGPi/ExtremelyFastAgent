@@ -7,3 +7,8 @@
 - Validation: `cargo test` could not download dependencies because crates.io DNS was unavailable; `cargo test --offline` also failed because reqwest was not cached. Compilation and live provider behavior remain unverified.
 - Retried with network access: dependencies downloaded and `cargo test` passed (2 tests). Live provider calls remain unverified.
 - Push to the configured GitHub remote was blocked by automatic approval review pending confirmation of the destination and exported contents.
+
+## Local testing
+- `cargo test`: five tests pass, including bounded chronological history, UTC timestamps, and terminal control filtering.
+- CLI smoke test: `/history` and `/quit` work with an empty temporary database; database permissions were 600 on Linux.
+- `cargo clippy` and `cargo fmt` are unavailable in the installed toolchain. Live inference, search, and end-to-end verification remain untested without provider credentials.
