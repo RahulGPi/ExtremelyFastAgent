@@ -5,7 +5,7 @@ use rusqlite::{Connection, params};
 use serde_json::{Value, json};
 use std::{
     env,
-    io::{self, IsTerminal, Write},
+    io::{self, IsTerminal},
     time::{Duration, Instant},
 };
 
@@ -124,24 +124,45 @@ async fn main() -> Result<()> {
     let interactive = io::stdin().is_terminal() && io::stdout().is_terminal();
     if interactive {
         println!(
-            "\n  mim agent\n  Chat · Memory · Web search\n  /help for commands\n  ───────────────────────────"
+            "\n  mim agent\n  Chat · Memory · Web search\n  /help for commands · ↑ for history · Ctrl+C to cancel\n  ───────────────────────────"
         );
     }
+    let mut editor = if interactive {
+        Some(rustyline::DefaultEditor::new()?)
+    } else {
+        None
+    };
     loop {
-        if interactive {
-            print!("\n  You › ");
-            io::stdout().flush()?;
-        }
-        let mut input = String::new();
-        if io::stdin().read_line(&mut input)? == 0 {
-            break;
-        }
+        let input = if let Some(editor) = editor.as_mut() {
+            match editor.readline("› ") {
+                Ok(line) => {
+                    if !line.trim().is_empty() {
+                        let _ = editor.add_history_entry(line.as_str());
+                    }
+                    line
+                }
+                Err(rustyline::error::ReadlineError::Interrupted) => {
+                    eprintln!("  Input cleared. /quit to exit.");
+                    continue;
+                }
+                Err(rustyline::error::ReadlineError::Eof) => break,
+                Err(e) => return Err(e.into()),
+            }
+        } else {
+            let mut line = String::new();
+            if io::stdin().read_line(&mut line)? == 0 {
+                break;
+            }
+            line
+        };
         let input = input.trim();
         if input == "/quit" {
             break;
         }
         if input == "/help" {
-            println!("/history [words]  Search past questions\n/quit             Exit");
+            println!(
+                "  /history [words]  Search past questions\n  /help             Show commands\n  /quit             Exit\n\n  ↑ / ↓  Input history     Ctrl+C  Cancel     Ctrl+D  Exit"
+            );
             continue;
         }
         if input == "/history" || input.starts_with("/history ") {
@@ -199,24 +220,34 @@ async fn main() -> Result<()> {
         if interactive {
             eprintln!("  Thinking…");
         }
-        match answer(
+        let request = answer(
             &client,
             &groq,
             &tavily,
             &model,
             &mut messages,
             &mut provider_time,
-        )
-        .await
-        {
-            Ok(a) => {
+        );
+        let result = if interactive {
+            tokio::select! {
+                result = request => Some(result),
+                _ = tokio::signal::ctrl_c() => { eprintln!("\n  Cancelled. Your question is saved."); None }
+            }
+        } else {
+            Some(request.await)
+        };
+        match result {
+            Some(Ok(a)) => {
                 if interactive {
                     println!("\n  Assistant\n");
                 }
                 println!("{}", clean(&a));
                 save(&db, "assistant", &a)?;
             }
-            Err(e) => eprintln!("Request failed: {e:#}"),
+            Some(Err(e)) => eprintln!(
+                "  Could not complete the request: {e:#}\n  Try again, or use /help for commands."
+            ),
+            None => (),
         }
         if env::var_os("MIM_PROFILE").is_some() {
             let total = turn_started.elapsed();
@@ -287,7 +318,10 @@ async fn answer(
                 clean(truncate_utf8(message, 500))
             );
         };
-        if let Some(usage) = response.get("usage") {
+        if let Some(usage) = response
+            .get("usage")
+            .filter(|_| env::var_os("MIM_PROFILE").is_some())
+        {
             eprintln!(
                 "Tokens: input {}, output {}",
                 usage["prompt_tokens"], usage["completion_tokens"]
