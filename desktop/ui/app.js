@@ -5,7 +5,33 @@ const panel = document.querySelector('#sessions-panel'), sessionList = document.
 const ready = invoke('new_session').then(id => { sessionId = id; }).catch(e => { status.textContent = `Unable to create session: ${e}`; throw e; });
 function resetMessages() { messages.replaceChildren(); const welcome = document.createElement('div'); welcome.className = 'welcome'; const brand = document.createElement('div'); brand.className = 'brand'; brand.textContent = 'SOLO'; const greeting = document.createElement('div'); greeting.textContent = 'What can I help with?'; welcome.append(brand, greeting); messages.append(welcome); evidence.hidden = true; }
 async function loadSession(id) { if (active) return; const rows = await invoke('recent_messages', {sessionId:id}); sessionId = id; resetMessages(); for (const row of rows) add(row.role === 'user' ? 'You' : 'mim', row.content, row.role === 'assistant' ? row.sources : null); panel.hidden = true; input.focus(); }
-async function refreshSessions() { const rows = await invoke('list_sessions', {query:sessionSearch.value}); sessionList.replaceChildren(); for (const row of rows) { const item=document.createElement('div'); item.className='session-row'; const open=document.createElement('button'); open.className='session-open'; open.textContent=row.title; open.title=row.created_at; open.onclick=() => loadSession(row.id).catch(e => status.textContent=String(e)); const rename=document.createElement('button'); rename.textContent='Rename'; rename.onclick=async () => { if (active) return; const title=prompt('Rename session',row.title); if (title !== null && title.trim()) { await invoke('rename_session',{sessionId:row.id,title}); await refreshSessions(); } }; const remove=document.createElement('button'); remove.textContent='Delete'; remove.onclick=async () => { if (active) return; if (!confirm(`Delete “${row.title}” and its messages?`)) return; await invoke('delete_session',{sessionId:row.id}); if (sessionId===row.id) { sessionId=await invoke('new_session'); resetMessages(); } await refreshSessions(); }; item.append(open,rename,remove); sessionList.append(item); } }
+async function refreshSessions() {
+  const rows = await invoke('list_sessions', {query:sessionSearch.value}); sessionList.replaceChildren();
+  for (const row of rows) {
+    const item = document.createElement('div'); item.className = 'session-row';
+    const open = document.createElement('button'); open.className = 'session-open'; open.textContent = row.title; open.title = row.created_at;
+    open.onclick = () => loadSession(row.id).catch(e => status.textContent = String(e));
+    const rename = document.createElement('button'); rename.textContent = 'Rename';
+    rename.onclick = () => {
+      if (active) return; item.replaceChildren();
+      const field = document.createElement('input'); field.value = row.title; field.maxLength = 200;
+      const save = document.createElement('button'); save.textContent = 'Save';
+      save.onclick = async () => { try { if (!field.value.trim()) return; await invoke('rename_session', {sessionId:row.id, title:field.value}); await refreshSessions(); } catch(e) { status.textContent = String(e); } };
+      const back = document.createElement('button'); back.textContent = 'Cancel'; back.onclick = () => refreshSessions();
+      item.append(field,save,back); field.focus(); field.select();
+    };
+    const remove = document.createElement('button'); remove.textContent = 'Delete';
+    remove.onclick = () => {
+      if (active) return; item.replaceChildren();
+      const label = document.createElement('span'); label.className = 'session-open'; label.textContent = `Delete “${row.title}”?`;
+      const yes = document.createElement('button'); yes.textContent = 'Delete'; yes.className = 'danger';
+      yes.onclick = async () => { try { await invoke('delete_session', {sessionId:row.id}); if (sessionId === row.id) { sessionId = await invoke('new_session'); resetMessages(); } await refreshSessions(); } catch(e) { status.textContent = String(e); } };
+      const no = document.createElement('button'); no.textContent = 'Cancel'; no.onclick = () => refreshSessions();
+      item.append(label,yes,no);
+    };
+    item.append(open,rename,remove); sessionList.append(item);
+  }
+}
 document.querySelector('#sessions-toggle').addEventListener('click', async () => { if (active) return; panel.hidden=!panel.hidden; if (!panel.hidden) { await refreshSessions(); sessionSearch.focus(); } });
 document.querySelector('#sessions-close').addEventListener('click', () => panel.hidden=true);
 sessionSearch.addEventListener('input', () => refreshSessions().catch(e => status.textContent=String(e)));
@@ -89,3 +115,5 @@ async function setCollapsed(collapsed) {
 document.querySelector('#collapse').addEventListener('click', () => setCollapsed(true));
 document.querySelector('#expand-notch').addEventListener('click', () => setCollapsed(false));
 document.addEventListener('keydown', e => { if (e.altKey && e.key.toLowerCase() === 'a') { e.preventDefault(); setCollapsed(!document.body.classList.contains('collapsed')); } });
+
+window.__TAURI__.event.listen('solo-toggle', () => setCollapsed(!document.body.classList.contains('collapsed')));

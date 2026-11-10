@@ -25,6 +25,32 @@ fn database() -> Result<Connection, String> {
     init_sessions(&db)?;
     Ok(db)
 }
+fn session_title(text: &str) -> String {
+    let trimmed = text.trim();
+    let lower = trimmed.to_lowercase();
+    let prefixes = [
+        "can you ",
+        "could you ",
+        "please ",
+        "find me ",
+        "tell me about ",
+        "what is ",
+        "what are ",
+        "how do i ",
+        "help me ",
+    ];
+    let content = prefixes
+        .iter()
+        .find(|p| lower.starts_with(**p))
+        .map_or(trimmed, |p| trimmed[p.len()..].trim());
+    let title: String = content.chars().take(60).collect();
+    let title = title.trim_end_matches(['?', '.', '!', ' ']);
+    if title.is_empty() {
+        "New chat".into()
+    } else {
+        title.to_owned()
+    }
+}
 fn init_sessions(db: &Connection) -> Result<(), String> {
     db.execute_batch("BEGIN; CREATE TABLE IF NOT EXISTS sessions (id INTEGER PRIMARY KEY, title TEXT NOT NULL, created_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS session_messages (message_id INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE, session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE); INSERT INTO sessions(title,created_at) SELECT 'Earlier conversations', datetime('now') WHERE EXISTS (SELECT 1 FROM messages WHERE id NOT IN (SELECT message_id FROM session_messages)) AND NOT EXISTS (SELECT 1 FROM sessions WHERE title='Earlier conversations'); INSERT OR IGNORE INTO session_messages(message_id,session_id) SELECT id,(SELECT id FROM sessions WHERE title='Earlier conversations' ORDER BY id LIMIT 1) FROM messages WHERE id NOT IN (SELECT message_id FROM session_messages); COMMIT;").map_err(|e|e.to_string())?;
     Ok(())
@@ -71,7 +97,7 @@ async fn chat(
             .map_err(|e| e.to_string())?;
             db.execute(
                 "UPDATE sessions SET title=?1 WHERE id=?2 AND title='New chat'",
-                rusqlite::params![text.chars().take(60).collect::<String>(), session_id],
+                rusqlite::params![session_title(&text), session_id],
             )
             .map_err(|e| e.to_string())?;
             db.execute_batch("COMMIT").map_err(|e| e.to_string())?;
@@ -294,6 +320,14 @@ fn close_window(window: tauri::Window) {
 }
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.iter().any(|arg| arg == "--toggle") {
+                let _ = app.emit("solo-toggle", ());
+            } else if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .manage(ActiveRequest(Mutex::new((false, None))))
         .invoke_handler(tauri::generate_handler![
             chat,
@@ -321,6 +355,15 @@ fn main() {
 #[cfg(test)]
 mod desktop_tests {
     use super::*;
+    #[test]
+    fn session_titles_capture_question_topic() {
+        assert_eq!(
+            session_title("find me all the filler episodes?"),
+            "all the filler episodes"
+        );
+        assert_eq!(session_title("你好世界"), "你好世界");
+        assert_eq!(session_title("what is ?"), "New chat");
+    }
     #[test]
     fn legacy_migration_preserves_messages_and_is_idempotent() {
         let db = Connection::open_in_memory().unwrap();

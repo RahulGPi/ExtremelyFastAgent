@@ -104,3 +104,8 @@
 ## SOLO welcome and compact window
 - Added SOLO above the welcome greeting and a compact collapsed button that can reopen chat. Alt+A works within the focused webview; it is not registered globally, and top-center anchoring remains unimplemented.
 - Fourteen desktop tests, Clippy, JavaScript syntax and desktop build pass. Collapse, focus, and Wayland sizing have not been interactively verified.
+
+## Session controls and shortcut bridge
+- Added in-app per-session delete confirmation and rename editing, and topic-based deterministic titles from the first prompt.
+- Added Tauri single-instance handling and a `--toggle` event for binding through COSMIC custom shortcuts. The global binding is not installed automatically and the top-edge overlay remains unimplemented. `sudo -n apt-get install libgtk-layer-shell-dev` could not run because sudo requires a password.
+- Fifteen desktop tests, Clippy, JavaScript syntax and desktop build pass. Single-instance event delivery, the COSMIC shortcut, and session controls still need interactive verification.
