@@ -74,3 +74,7 @@
 - Removed the requested window and header chrome and footer. Added safe text-only Markdown rendering for headings, lists, bold, inline code and fenced code.
 - Desktop responses now receive actual search result URLs, titles and excerpts; clicking a passage shows matching cited results, while unlinked passages show an unverified notice. This is citation association, not claim-level verification or exact extraction provenance.
 - Ten CLI tests, Clippy, desktop compilation and JavaScript syntax checks pass. Interactive UI and external-link behavior have not yet been verified on the display.
+
+## Rate-limit handling
+- Increased the bounded Retry-After window from two to 20 seconds, with one retry per inference call. Missing, invalid or longer delays still surface the error; no unbounded retry is performed.
+- Eleven tests, Clippy and the desktop build pass. Live rate-limit behavior was not reproduced during this change.

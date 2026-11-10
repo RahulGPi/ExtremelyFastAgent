@@ -46,6 +46,11 @@ fn supported_answer(answer: &str, sources: &[String], searched: bool) -> String 
         )
     }
 }
+fn retry_delay(seconds: Option<f64>) -> Option<Duration> {
+    seconds
+        .filter(|value| value.is_finite() && (0.0..=20.0).contains(value))
+        .map(|value| Duration::from_secs_f64(value.max(0.1)))
+}
 fn clean(s: &str) -> String {
     s.chars()
         .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
@@ -368,13 +373,10 @@ pub async fn answer(
                 eprintln!("Retrying an invalid tool call…");
                 continue;
             }
-            if status.as_u16() == 429
-                && !rate_retry
-                && retry_after.is_some_and(|s| (0.0..=2.0).contains(&s))
-            {
+            if status.as_u16() == 429 && !rate_retry && retry_delay(retry_after).is_some() {
                 rate_retry = true;
                 eprintln!("  Rate limited; retrying shortly…");
-                tokio::time::sleep(Duration::from_secs_f64(retry_after.unwrap().max(0.1))).await;
+                tokio::time::sleep(retry_delay(retry_after).unwrap()).await;
                 continue;
             }
             bail!(
@@ -459,6 +461,13 @@ mod tests {
         ));
         assert!(wants_search("Look up the current weather"));
         assert!(!wants_search("hello there"));
+    }
+    #[test]
+    fn rate_limit_delay_is_bounded() {
+        assert_eq!(retry_delay(Some(12.0)), Some(Duration::from_secs(12)));
+        assert_eq!(retry_delay(Some(21.0)), None);
+        assert_eq!(retry_delay(None), None);
+        assert_eq!(retry_delay(Some(f64::NAN)), None);
     }
     #[test]
     fn blocks_uncited_search_answers() {
