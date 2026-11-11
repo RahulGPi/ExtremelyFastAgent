@@ -3,6 +3,7 @@ import {readFileSync, existsSync} from 'node:fs';
 import {randomBytes} from 'node:crypto';
 import {openMemory,createSession,saveTurn,recent,recall,importLegacy,citedSources} from './memory.js';
 import {resolveDay} from './dates.js';
+import {openWindow} from './window.js';
 const envPath=new URL('../.env',import.meta.url); if(existsSync(envPath)) for(const line of readFileSync(envPath,'utf8').split(/\r?\n/)){const m=line.match(/^\s*(?:export\s+)?([A-Z_][A-Z_0-9]*)\s*=\s*(.*?)\s*$/); if(m && process.env[m[1]]===undefined) process.env[m[1]]=m[2].replace(/^(['"])(.*)\1$/,'$2');}
 const db=openMemory(process.env.SOLO_DB || 'solo-node.db');
 if(existsSync('mim.db') && !process.env.SOLO_SKIP_LEGACY) { try { const n=importLegacy(db,'mim.db'); if(n) console.log(`Imported ${n} earlier messages.`); } catch(e) { console.error(`Could not import earlier history: ${e.message}`); } }
@@ -41,4 +42,4 @@ const server=http.createServer(async(req,res)=>{try{
  if(req.method==='POST'&&match[2]==='chat'){const {text}=await body(req);if(typeof text!=='string'||!text.trim()||text.length>16000)return send(res,400,{error:'Enter a question (maximum 16,000 characters)'});const userId=saveTurn(db,id,'user',text.trim());const result=await reply(id,text,userId);saveTurn(db,id,'assistant',result.answer,result.sources);return send(res,200,result);}}
  send(res,404,{error:'Not found'});
  }catch(e){console.error('Request failed:',e.message);send(res,500,{error:e.message});}});
-server.listen(port,host,()=>console.log(`SOLO running at http://${host}:${port}`));
+server.listen(port,host,()=>{const url=`http://${host}:${server.address().port}`;console.log(`SOLO running at ${url}`);openWindow(url);});

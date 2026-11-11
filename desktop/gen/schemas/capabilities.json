@@ -1,1 +1,1 @@
-{}
+{"main-capability":{"identifier":"main-capability","description":"Core event access for the main chat window","local":true,"windows":["main"],"permissions":["core:default"]}}
