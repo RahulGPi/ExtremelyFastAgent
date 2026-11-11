@@ -157,3 +157,6 @@
 
 ## Full eight-case live retest
 - Ran all eight synthetic-history cases against commit `6652cc3`: three passed and five returned partial evidence-only answers. No case produced an HTTP error. Three recall/no-history cases completed in under a second; research cases took 1.9–63.9 seconds including providers. All 20 offline tests passed. See `reports/full-memory-evaluation-2026-11-11.md` for the case-by-case results and limits.
+
+## Conversational tone
+- Updated SOLO's conversational prompt and fallback wording to be warmer, and changed the generic progress message to “Thinking…”. Source and evidence guardrails remain in place. All 20 tests passed; two live synthetic messages received friendly, relevant replies without web search. Tone and provider responses can vary.

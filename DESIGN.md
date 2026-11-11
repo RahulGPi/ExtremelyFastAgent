@@ -8,7 +8,7 @@ Those commands require Node 24 and the system webview dependencies described in 
 
 1. A localhost server serves the chat UI to a frameless WebviewJS window, which uses the operating system's webview. The window collapses to a floating button and supports session management.
 2. SQLite stores timestamped turns and returned sources. FTS5 retrieves past questions and following answers across sessions alongside recent active-session turns. Common dates and weekdays are resolved in the local time zone; a model plans other date expressions and search terms.
-3. Groq supplies inference, with optional OpenRouter fallback. The model can call `web_search`; SOLO runs up to six searches by default, configurable up to twelve, and reports skipped or failed searches. It asks the model to distinguish previous records from current evidence and to cite sources.
+3. Groq supplies inference, with optional OpenRouter fallback. SOLO is prompted to be warm and conversational, while distinguishing previous records from current evidence. The model can call `web_search`; SOLO runs up to six searches by default, configurable up to twelve, and reports skipped or failed searches.
 4. SOLO checks cited URLs and uses a second model call to audit the draft against history and source excerpts. If uncertain, it returns records and links instead. The audit is fallible: a citation is not proof. History and search results are treated as untrusted input.
 
 Protected API calls require an ephemeral token. Keys in `.env` and local SQLite history are not encrypted. Model providers receive selected conversation context; Tavily receives search queries. It can import earlier Rust-app history.

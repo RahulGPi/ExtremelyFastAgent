@@ -36,7 +36,7 @@ export async function runSearchLoop({messages,tool,needsSearch,memories,callMode
   try {m=await callModel(messages,tool,round===2?'none':round===0 && needsSearch?'required':undefined);}
   catch {
    const prior=memories.slice(0,8).map(row=>`- ${row.created_at} (${row.role}): ${row.content}`).join('\n');
-   return {answer:(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'The model providers are unavailable, so I could not finish the research. Please try again.'+(sources.length?' Search results already retrieved:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):''),sources,memories:memories.length};
+   return {answer:(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'Sorry, I couldn’t reach the model providers to finish this. Please try again in a moment.'+(sources.length?' Search results already retrieved:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):''),sources,memories:memories.length};
   }
   if(!m.tool_calls?.length) {
    let result=m;
@@ -44,7 +44,7 @@ export async function runSearchLoop({messages,tool,needsSearch,memories,callMode
     try { result=await callModel([...messages,{role:'user',content:'Your previous response was cut off. Give a shorter complete answer using only the available evidence; explicitly state which items or claims remain unchecked, and cite exact source URLs.'}],tool,'none'); }
     catch { result=m; }
    }
-   let answer=cleanAnswer(result.content)||'I could not produce an answer.';
+   let answer=cleanAnswer(result.content)||'Sorry, I couldn’t come up with an answer. Please try again.';
    if(result.finish_reason==='length') answer+='\n\nThe response was cut off before it could be completed.';
    if(sources.length && !citedSources(answer,sources).length) {
     try {
@@ -56,7 +56,7 @@ export async function runSearchLoop({messages,tool,needsSearch,memories,callMode
    const supported=(!(needsSearch||searched)) || (result.finish_reason!=='length' && await evidenceSupportsAnswer({answer,memories,sources,question:messages.findLast(m=>m.role==='user')?.content||'',callModel}));
    if(!supported) {
     const prior=memories.slice(0,8).map(m=>`- ${m.created_at} (${m.role}): ${m.content}`).join('\n');
-    answer=(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'I could not verify a current answer.'+(sources.length?' Relevant search results:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):' No usable web sources were returned.');
+    answer=(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'I could not verify a current answer yet.'+(sources.length?' Relevant search results:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):' No usable web sources were returned.');
    }
    if(skipped || failed)answer+=`\n\nSome requested searches were ${skipped?'not run because the search budget was reached':''}${skipped&&failed?' and ':''}${failed?'unsuccessful':''}; coverage may be incomplete.`;
    return {answer,sources,memories:memories.length};
@@ -76,5 +76,5 @@ export async function runSearchLoop({messages,tool,needsSearch,memories,callMode
  }
  // A provider may ignore tool_choice=none; retain evidence rather than fail.
  const prior=memories.slice(0,8).map(m=>`- ${m.created_at} (${m.role}): ${m.content}`).join('\n');
- return {answer:(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'I could not complete the research. Coverage is incomplete.'+(sources.length?' Search results:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):''),sources,memories:memories.length};
+ return {answer:(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'I couldn’t finish checking everything, so this research is incomplete.'+(sources.length?' Search results:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):''),sources,memories:memories.length};
 }
