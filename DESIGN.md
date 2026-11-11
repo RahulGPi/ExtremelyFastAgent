@@ -2,6 +2,8 @@
 
 SOLO answers questions about earlier conversations and checks whether those answers are still current. The primary app is JavaScript on Node.js 24+, started with `npm install` and `npm run dev`. It exposes one model-facing tool: Tavily web search.
 
+Those commands require Node 24 and the system webview dependencies described in the README; Linux also needs WebKitGTK, GTK, libsoup and libxdo. Port 3000 must be free or configured via `PORT`. A clean Node 24 startup was tested on Linux; macOS and Windows have not been tested. Required and optional provider keys are listed in `.env.example`.
+
 ## How it works
 
 1. A localhost server serves the chat UI to a frameless WebviewJS window, which uses the operating system's webview. The window collapses to a floating button and supports session management.
@@ -18,7 +20,7 @@ SQLite and bounded lexical retrieval avoid a separate database service and reduc
 ## Alternatives considered
 
 - **Electron or a browser window:** Electron bundles a larger runtime; a browser window offered less control over the interface. WebviewJS still depends on system libraries and compositor behavior.
-- **Rust/Tauri as the primary app:** an earlier implementation remains in the repo, but the current requirements call for JavaScript or TypeScript on Node.
+- **Rust/Tauri as the primary app:** the root Rust sources and `desktop/` are retained as a legacy implementation, not the current entry point. `npm run dev` runs `node-app/server.js`; the Node app does not build or launch the old Rust/Tauri app. WebviewJS uses a platform-native dependency and system webview, so startup still has the prerequisites above.
 - **Full-history prompts or a vector database:** full history increases token use and latency; a separate vector store adds complexity. FTS5 can miss paraphrases.
 - **Trusting any cited link:** a matching URL may not support its claim. The model audit adds latency and cost and can still make mistakes.
 
