@@ -132,3 +132,8 @@
 - Added the primary Node.js browser app (`npm install`, `npm run dev`) and `.env.example`, using local SQLite, timestamped cross-session recall, model-assisted date interpretation, one Tavily search tool, and Groq/OpenRouter model providers. Existing Rust history is imported once where available.
 - Five Node memory tests pass; localhost session create/search/rename/delete smoke tests pass. A live test with a synthetic 3 November Neon question retrieved both prior turns, returned seven sources, and produced a comparison. This single test does not establish factual accuracy, date robustness, cost, or latency targets.
 - Browser UI is a new local web interface; native notch/global hotkey and desktop provider-progress events are not carried over. No macOS or Windows test was performed.
+
+## Date retrieval and evidence guard
+- Added local interpretation of day-month dates and past weekdays, with separate local-midnight conversion for daylight-saving transitions. Invalid recognized dates are rejected; other expressions still rely on the model planner.
+- Current-information requests and searches now return an uncertainty message when the model provides no citation matching a returned result, including when no results are returned. Matching a URL does not validate the claim or ensure coverage of every shortlisted product.
+- Nine Node tests and JavaScript syntax checks pass, including India time, a US daylight-saving transition, invalid dates, and a future-weekday regression. This change has not been tested with a live provider or browser.

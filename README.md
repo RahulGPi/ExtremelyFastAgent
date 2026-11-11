@@ -63,6 +63,6 @@ If an earlier Rust/Tauri `mim.db` is present in the project directory, its sessi
 npm test
 ```
 
-Tests cover cross-session keyword recall, date-range retrieval, source URL matching, and legacy import. The agent uses keyword retrieval and an LLM to interpret dates, so paraphrases, ambiguous dates, or missing records can still cause errors. Source URL matching is not claim-by-claim verification. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
+Tests cover cross-session keyword recall, local date-range retrieval including a daylight-saving transition, source URL matching, and legacy import. Common day-month dates and past weekdays are interpreted locally; other dates rely on the model. Paraphrases, ambiguous dates, or missing records can still cause errors. Source URL matching is not claim-by-claim verification, and the app does not guarantee it checks every product in a shortlist. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
 
 The Node implementation was tested locally on Linux. macOS and Windows have not been tested. See [design.md](design.md) for the architecture and [WORKLOG.md](WORKLOG.md) for development notes.
