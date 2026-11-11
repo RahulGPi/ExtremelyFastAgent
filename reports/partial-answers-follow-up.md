@@ -24,4 +24,8 @@ The current audit is fallible: a matching URL is not proof that a claim is suppo
 4. Check product-update dates against the original discussion date and cite the supporting source for each reported update.
 5. Add deterministic regression tests for mixed supported/unsupported findings and fallback diagnostics, then rerun the eight live cases. Measure both response quality and the extra latency and API usage from verification.
 
-These are proposed changes; they have not been implemented or validated yet.
+## Implementation update
+
+An initial pass now records opt-in, content-free diagnostic reason codes and profiles model/search wait, audit time, and provider-reported token usage. When the whole draft is rejected, it can retain original fragments only if the reviewer identifies an exact quote in a cited excerpt. Dated change and release fragments additionally require an ISO date after the reference day; ambiguous and same-day events are withheld. This is deliberately conservative and the reviewer can still make mistakes.
+
+An eight-case live retest is documented in [the findings retest](findings-retest-2026-11-11.md). It improved the dated recheck and produced a partial Postgres comparison, but the CRM case still fell back to links and two cases encountered provider failures. Subsequent stricter handling of “still”, local-date edge cases, and sentence-level splitting was unit-tested, not live-retested. Further work is needed before treating the research cases as solved.

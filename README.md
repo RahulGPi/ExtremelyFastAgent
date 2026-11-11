@@ -64,6 +64,8 @@ Click the source links under an answer to inspect them. A model audits cited exc
 | `TZ` | Optional IANA time zone for interpreting dates |
 | `PORT` | Optional local server port; defaults to `3000` |
 | `SOLO_DB` | Optional SQLite database path; defaults to `solo-node.db` |
+| `SOLO_DIAGNOSTICS` | Set to `1` to log fallback reason codes and counts, without conversation text |
+| `SOLO_PROFILE` | Set to `1` to log reply timing and provider-reported token usage |
 | `SOLO_MAX_SEARCHES` | Search calls per answer, from 1 to 12; defaults to 6 |
 | `SOLO_NO_WINDOW` | Set to `1` to run only the local server, without opening a native window |
 | `SOLO_SKIP_LEGACY` | Set to any non-empty value to skip importing the earlier app's database |
@@ -78,7 +80,7 @@ If an earlier Rust/Tauri `mim.db` is present in the project directory, its sessi
 npm test
 ```
 
-Tests cover cross-session keyword recall, local date-range retrieval including a daylight-saving transition, source URL matching, and legacy import. Common day-month dates and past weekdays are interpreted locally; other dates rely on the model. Paraphrases, ambiguous dates, or missing records can still cause errors. The model-based evidence audit is not a guarantee of claim-by-claim verification, and the app does not guarantee it checks every product in a shortlist. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
+Tests cover cross-session keyword recall, local date-range retrieval including a daylight-saving transition, source URL matching, and legacy import. Common day-month dates and past weekdays are interpreted locally; other dates rely on the model. Paraphrases, ambiguous dates, or missing records can still cause errors. A failed draft may retain individually reviewed findings with an exact excerpt quote; the model-based audit is not a guarantee of claim-by-claim verification, and the app does not guarantee it checks every product in a shortlist. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
 
 The Node implementation was tested locally on Linux. macOS and Windows have not been tested. See [DESIGN.md](DESIGN.md) for the architecture and [WORKLOG.md](WORKLOG.md) for development notes.
 
@@ -98,3 +100,5 @@ node eval/run.mjs
 ```
 
 The runner writes full responses and search results to `/tmp/solo-evaluation-results.json`. Set `SOLO_EVAL_URL` and `SOLO_EVAL_OUTPUT` to change the server and output file. Review outputs against the seeded records and source pages; counts and HTTP status alone do not establish correctness. Stop the test server with Ctrl+C. The shell examples target Linux/macOS; Windows has not been tested.
+
+When profiling is enabled, the application estimate is the time inside `reply()` minus the union of overlapping model and search call intervals. It excludes HTTP setup, saving the final answer, and UI rendering; provider intervals include network and request handling. Token counts include only successful responses that report usage and do not determine monetary cost.

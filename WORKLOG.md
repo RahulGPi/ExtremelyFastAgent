@@ -160,3 +160,7 @@
 
 ## Conversational tone
 - Updated SOLO's conversational prompt and fallback wording to be warmer, and changed the generic progress message to “Thinking…”. Source and evidence guardrails remain in place. All 20 tests passed; two live synthetic messages received friendly, relevant replies without web search. Tone and provider responses can vary.
+
+## Partial-answer follow-up
+- Added individually reviewed fragments with exact quoted excerpts, conservative date handling for change/release claims, content-free opt-in fallback diagnostics, and optional provider wait and reported-token profiling. These checks remain model-dependent and can withhold useful answers or miss errors.
+- Reran the eight synthetic cases: four passed, one was partial, and three failed or were unsafe under the criteria in `reports/findings-retest-2026-11-11.md`. A “still” price comparison, time-zone edge case, and sentence-level splitting were tightened after the live run and unit-tested; they have not had another full live run. All 30 offline tests pass.
