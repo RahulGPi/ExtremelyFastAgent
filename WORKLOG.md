@@ -141,3 +141,9 @@
 ## Browser window and session list
 - The Node server opens a Chrome/Chromium/Edge app window with an initial 460×720 size where available. The window manager controls its native frame and resizing; the browser version cannot reliably remove that frame on Wayland.
 - Reworked the session panel into compact rows with rename and delete dialogs, and hid empty sessions from the list. Nine Node tests and syntax checks pass; a local API smoke test verified empty-session filtering. The new dialog interactions have not been tested interactively.
+
+## Native WebviewJS window and floating control
+- Replaced the Chrome launcher with WebviewJS 0.6.0, using a frameless system-webview window and Node 24. The window can collapse to a compact button and reopen, and source links are handed to the system browser.
+- Added a local toggle command for an OS-managed Alt+A binding; focused Alt+A also toggles the window. COSMIC does not advertise the global shortcut portal, and compositor-controlled positioning/always-on-top behavior is not guaranteed.
+- A Linux test with an isolated Node 24 and libxdo started the window and created a session. The user confirmed that the floating button reopens the chat and that the updated COSMIC Alt+A shortcut works while another app is focused. A clean isolated npm install loaded the native binding. Nine tests and JavaScript syntax checks pass. macOS and Windows have not been tested.
+- Updated the shortcut command to start SOLO when it is not running. The close button now quits; the separate minus button collapses. With the user's Node 24 and libxdo installed, a shortcut-start, collapse/reopen API calls, and quit API call passed in an isolated Linux test.

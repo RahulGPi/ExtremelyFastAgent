@@ -1,3 +1,13 @@
+window.setSoloCollapsed=collapsed=>{document.body.classList.toggle('collapsed',collapsed);if(!collapsed)document.querySelector('#input').focus();};
+if(new URLSearchParams(location.search).has('desktop')){
+ const closeButton=document.querySelector('#close-window'),collapseButton=document.querySelector('#collapse-window');
+ closeButton.hidden=false;collapseButton.hidden=false;
+ const toggle=()=>api('/api/toggle',{method:'POST'}).catch(e=>{document.querySelector('#status').textContent=e.message});
+ closeButton.onclick=()=>api('/api/quit',{method:'POST'}).catch(e=>{document.querySelector('#status').textContent=e.message});
+ collapseButton.onclick=toggle;
+ document.querySelector('#bubble').onclick=toggle;
+ document.addEventListener('keydown',e=>{if(e.altKey && e.key.toLowerCase()==='a'){e.preventDefault();toggle();}});
+}
 let token,session;const messages=document.querySelector('#messages'),status=document.querySelector('#status'),input=document.querySelector('#input'),send=document.querySelector('#send');
 const sidebar=document.querySelector('#sidebar'),sidebarButton=document.querySelector('#open-sidebar');
 function showSessions(show){sidebar.hidden=!show;sidebarButton.setAttribute('aria-expanded',String(show));if(show)document.querySelector('#search-sessions').focus();else sidebarButton.focus();}

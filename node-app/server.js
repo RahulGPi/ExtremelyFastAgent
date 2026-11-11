@@ -29,11 +29,14 @@ async function reply(id,text,userId){
  }
  throw Error('Unable to complete request');
 }
+let desktopWindow;
 const server=http.createServer(async(req,res)=>{try{
  const url=new URL(req.url,`http://${host}:${port}`);if(req.method==='GET'&&url.pathname==='/'){res.writeHead(200,{'content-type':'text/html; charset=utf-8','content-security-policy':"default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'",'x-content-type-options':'nosniff'});return res.end(readFileSync(new URL('../web/index.html',import.meta.url)));}
  if(req.method==='GET'&&url.pathname==='/app.js'){res.writeHead(200,{'content-type':'text/javascript; charset=utf-8'});return res.end(readFileSync(new URL('../web/app.js',import.meta.url)));}
  if(req.method==='GET'&&url.pathname==='/api/config')return send(res,200,{token});
  if(req.headers['x-solo-token']!==token)return send(res,403,{error:'Forbidden'});
+ if(req.method==='POST'&&url.pathname==='/api/quit'){if(!desktopWindow)return send(res,503,{error:'Native window is not available'});send(res,200,{ok:true});return setImmediate(()=>desktopWindow.close());}
+ if(req.method==='POST'&&url.pathname==='/api/toggle'){if(!desktopWindow)return send(res,503,{error:'Native window is not available'});desktopWindow.toggle();return send(res,200,{ok:true});}
  if(req.method==='GET'&&url.pathname==='/api/sessions'){const q=url.searchParams.get('q')||'';return send(res,200,db.prepare("SELECT c.* FROM conversations c WHERE EXISTS (SELECT 1 FROM turns t WHERE t.conversation_id=c.id) AND (instr(lower(c.title),lower(?1))>0 OR EXISTS (SELECT 1 FROM turns t WHERE t.conversation_id=c.id AND instr(lower(t.content),lower(?1))>0)) ORDER BY c.id DESC LIMIT 100").all(q));}
  if(req.method==='POST'&&url.pathname==='/api/sessions')return send(res,201,{id:createSession(db)});
  const sessionPath=url.pathname.match(/^\/api\/sessions\/(\d+)$/); if(sessionPath){const id=Number(sessionPath[1]); if(req.method==='DELETE'){db.prepare('DELETE FROM conversations WHERE id=?').run(id);return send(res,200,{ok:true});}if(req.method==='PATCH'){const {title}=await body(req);if(typeof title!=='string'||!title.trim()||title.length>120)return send(res,400,{error:'Invalid title'});db.prepare('UPDATE conversations SET title=? WHERE id=?').run(title.trim(),id);return send(res,200,{ok:true});}}
@@ -42,4 +45,4 @@ const server=http.createServer(async(req,res)=>{try{
  if(req.method==='POST'&&match[2]==='chat'){const {text}=await body(req);if(typeof text!=='string'||!text.trim()||text.length>16000)return send(res,400,{error:'Enter a question (maximum 16,000 characters)'});const userId=saveTurn(db,id,'user',text.trim());const result=await reply(id,text,userId);saveTurn(db,id,'assistant',result.answer,result.sources);return send(res,200,result);}}
  send(res,404,{error:'Not found'});
  }catch(e){console.error('Request failed:',e.message);send(res,500,{error:e.message});}});
-server.listen(port,host,()=>{const url=`http://${host}:${server.address().port}`;console.log(`SOLO running at ${url}`);openWindow(url);});
+server.listen(port,host,async()=>{const url=`http://${host}:${server.address().port}`;console.log(`SOLO running at ${url}`);desktopWindow=await openWindow(url,()=>{server.close();process.exit(0);});});

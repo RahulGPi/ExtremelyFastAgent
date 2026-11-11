@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=24"
   },
   "scripts": {
     "dev": "node node-app/server.js",
-    "test": "node node-app/memory.test.js"
+    "test": "node node-app/memory.test.js",
+    "toggle": "node node-app/toggle.js"
+  },
+  "dependencies": {
+    "@webviewjs/webview": "0.6.0"
   }
 }

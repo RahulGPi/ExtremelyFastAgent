@@ -2,9 +2,9 @@
 
 ## Runtime and interfaces
 
-The primary implementation is JavaScript on Node.js 22.13+, started with `npm install` and `npm run dev`. The local HTTP server binds to 127.0.0.1 and serves a browser chat interface. State-changing API calls require an ephemeral local token. The app has no npm dependencies and uses Node's experimental `node:sqlite` module. `.env.example` lists required and optional provider keys.
+The primary implementation is JavaScript on Node.js 24+, started with `npm install` and `npm run dev`. The local HTTP server binds to 127.0.0.1 and serves a chat interface displayed in a frameless WebviewJS native window. State-changing API calls require an ephemeral local token. The native shell uses the system webview rather than bundling Chromium; the app uses Node's experimental `node:sqlite` module. `.env.example` lists required and optional provider keys.
 
-The browser creates a fresh session on page load. Users can search, rename, delete, and reopen sessions. User messages are saved before inference so failed requests are still remembered; assistant messages and their source results are persisted after successful responses. The existing Rust/Tauri app is retained as legacy source and is not a runtime dependency.
+The webview creates a fresh session on page load. Users can search, rename, delete, and reopen sessions. User messages are saved before inference so failed requests are still remembered; assistant messages and their source results are persisted after successful responses. The existing Rust/Tauri app is retained as legacy source and is not a runtime dependency.
 
 ## Memory and search
 
@@ -14,10 +14,10 @@ A model request receives recent turns and retrieved records with timestamps. A s
 
 ## Configuration, privacy, and limits
 
-See `.env.example` and README for keys and configuration. SQLite and keys are not encrypted; Unix database permissions are restricted. Requests send context to the chosen model provider and search queries to Tavily. OpenRouter's free router can change models and may be rate-limited. There are no cost budgets or guaranteed latency targets yet. Source excerpts are stored with answers. The browser is local-only, and links are rendered with DOM APIs rather than HTML injection.
+See `.env.example` and README for keys and configuration. SQLite and keys are not encrypted; Unix database permissions are restricted. Requests send context to the chosen model provider and search queries to Tavily. OpenRouter's free router can change models and may be rate-limited. There are no cost budgets or guaranteed latency targets yet. Source excerpts are stored with answers. The server is local-only, and links are rendered with DOM APIs rather than HTML injection.
 
 ## Validation and known gaps
 
 `npm test` covers cross-session topic recall, date ranges including a daylight-saving transition, safe FTS syntax, legacy import, and URL matching. A Linux live smoke test with synthetic 3 November history retrieved the earlier question and answer, performed web search, and returned a comparison; it is not a comprehensive accuracy benchmark. macOS and Windows have not been tested. Node's SQLite API is experimental.
 
-Known gaps include exact token counting, automatic budget limits, comprehensive date-expression evaluation, semantic retrieval, per-claim evidence verification, ensuring each item in a multi-product shortlist is checked, provider-stage progress in the browser, streaming, full Markdown support, richer UI tests, and production-grade multi-user isolation. The former native top-edge notch and global shortcut are not part of this Node/browser version.
+Known gaps include exact token counting, automatic budget limits, comprehensive date-expression evaluation, semantic retrieval, per-claim evidence verification, ensuring each item in a multi-product shortlist is checked, provider-stage progress in the browser, streaming, full Markdown support, richer UI tests, and production-grade multi-user isolation. The window can collapse into a compact button. Alt+A is handled when focused; a system-wide shortcut requires a desktop binding to the supplied toggle command. Wayland controls window positioning and always-on-top behavior, so top-center anchoring is not guaranteed.
