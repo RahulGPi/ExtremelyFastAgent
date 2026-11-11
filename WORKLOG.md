@@ -154,3 +154,6 @@
 ## Search, output and evidence follow-up
 - Batched web calls under a configurable bounded budget, returned partial evidence for skipped/failed searches and model outages, retried truncated output, and removed reasoning markers. Added a fail-closed model audit against cited excerpts and dated history; it is fallible and adds cost and latency.
 - Added an isolated synthetic evaluation harness and 11 additional regression tests (20 total). The live retests are documented in `reports/memory-evaluation-followup-2026-11-11.md`: CRM no longer fails at the search limit but still falls back to sources, and one unsupported synthetic Postgres price-change claim was withheld after the audit was added. A live provider outage also occurred; its new fallback is mock-tested only.
+
+## Full eight-case live retest
+- Ran all eight synthetic-history cases against commit `6652cc3`: three passed and five returned partial evidence-only answers. No case produced an HTTP error. Three recall/no-history cases completed in under a second; research cases took 1.9–63.9 seconds including providers. All 20 offline tests passed. See `reports/full-memory-evaluation-2026-11-11.md` for the case-by-case results and limits.
