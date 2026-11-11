@@ -50,7 +50,7 @@ Use the minus button to collapse SOLO into a small floating button; click it to 
 
 When you ask about a date or earlier topic, SOLO searches its local conversation history and includes matching questions and answers as context. For update requests it searches the web and compares current results with those records. Date interpretation uses the computer's local time zone; optionally set `TZ` in `.env` to an IANA time zone such as `Asia/Kolkata`. The exact time-zone behavior on Windows has not been tested.
 
-Click the source links under an answer to inspect them. A citation does **not** prove the corresponding claim is correct. If the agent cannot find prior history or verify current details, it should say so; retrieval and factual accuracy are not guaranteed.
+Click the source links under an answer to inspect them. A model audits cited excerpts before a research answer is shown, but this check can make mistakes or withhold useful answers. A citation does **not** prove the corresponding claim is correct. If the agent cannot find prior history or verify current details, it should say so; retrieval and factual accuracy are not guaranteed.
 
 ## Configuration and data
 
@@ -64,6 +64,7 @@ Click the source links under an answer to inspect them. A citation does **not** 
 | `TZ` | Optional IANA time zone for interpreting dates |
 | `PORT` | Optional local server port; defaults to `3000` |
 | `SOLO_DB` | Optional SQLite database path; defaults to `solo-node.db` |
+| `SOLO_MAX_SEARCHES` | Search calls per answer, from 1 to 12; defaults to 6 |
 | `SOLO_NO_WINDOW` | Set to `1` to run only the local server, without opening a native window |
 | `SOLO_SKIP_LEGACY` | Set to any non-empty value to skip importing the earlier app's database |
 
@@ -77,6 +78,23 @@ If an earlier Rust/Tauri `mim.db` is present in the project directory, its sessi
 npm test
 ```
 
-Tests cover cross-session keyword recall, local date-range retrieval including a daylight-saving transition, source URL matching, and legacy import. Common day-month dates and past weekdays are interpreted locally; other dates rely on the model. Paraphrases, ambiguous dates, or missing records can still cause errors. Source URL matching is not claim-by-claim verification, and the app does not guarantee it checks every product in a shortlist. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
+Tests cover cross-session keyword recall, local date-range retrieval including a daylight-saving transition, source URL matching, and legacy import. Common day-month dates and past weekdays are interpreted locally; other dates rely on the model. Paraphrases, ambiguous dates, or missing records can still cause errors. The model-based evidence audit is not a guarantee of claim-by-claim verification, and the app does not guarantee it checks every product in a shortlist. Provider rate limits and unavailable search results can prevent an answer. There are no hard monetary budgets yet.
 
 The Node implementation was tested locally on Linux. macOS and Windows have not been tested. See [design.md](design.md) for the architecture and [WORKLOG.md](WORKLOG.md) for development notes.
+
+## Live evaluation
+
+The evaluation uses synthetic conversations, makes real model and search requests, and may consume API credits. It does not automatically judge factual accuracy. Use a fresh database path:
+
+```bash
+TZ=Asia/Kolkata node eval/seed.mjs /tmp/solo-eval.db
+TZ=Asia/Kolkata SOLO_DB=/tmp/solo-eval.db SOLO_SKIP_LEGACY=1 SOLO_NO_WINDOW=1 PORT=39878 npm run dev
+```
+
+In another terminal:
+
+```bash
+node eval/run.mjs
+```
+
+The runner writes full responses and search results to `/tmp/solo-evaluation-results.json`. Set `SOLO_EVAL_URL` and `SOLO_EVAL_OUTPUT` to change the server and output file. Review outputs against the seeded records and source pages; counts and HTTP status alone do not establish correctness. Stop the test server with Ctrl+C. The shell examples target Linux/macOS; Windows has not been tested.

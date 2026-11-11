@@ -150,3 +150,7 @@
 
 ## Live memory evaluation
 - Ran eight synthetic-history questions through configured providers using a separate database. Three passed, two were partial, and three failed: multi-CRM searches hit the tool-call limit; the Postgres response was truncated; and a missing-history answer leaked a reasoning delimiter and duplicated itself. The full case-by-case results, timing, and limits are in `reports/memory-evaluation-2026-11-11.md`.
+
+## Search, output and evidence follow-up
+- Batched web calls under a configurable bounded budget, returned partial evidence for skipped/failed searches and model outages, retried truncated output, and removed reasoning markers. Added a fail-closed model audit against cited excerpts and dated history; it is fallible and adds cost and latency.
+- Added an isolated synthetic evaluation harness and 11 additional regression tests (20 total). The live retests are documented in `reports/memory-evaluation-followup-2026-11-11.md`: CRM no longer fails at the search limit but still falls back to sources, and one unsupported synthetic Postgres price-change claim was withheld after the audit was added. A live provider outage also occurred; its new fallback is mock-tested only.

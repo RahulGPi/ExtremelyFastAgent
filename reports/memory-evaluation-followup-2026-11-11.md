@@ -1,0 +1,13 @@
+# Memory evaluation follow-up — 11 November 2026
+
+This follow-up used isolated synthetic conversations and the configured live model and Tavily providers. Results are single runs, not a benchmark. The earlier eight-case report remains unchanged.
+
+## Search-loop and output changes
+
+An eight-case live rerun after the first changes produced no search-limit errors. The five-CRM question returned the remembered shortlist, 30 source links and an incomplete-coverage warning instead of HTTP 500 (28.6 s). The other CRM update returned a similar evidence-only result (30.9 s). Both were partial: neither produced a verified comparison. The Postgres question returned remembered synthetic history and source links without the earlier mid-sentence cutoff (13.1 s), but did not provide a current comparison. Dated recall and task-tool recall succeeded. Missing-history output no longer included the reasoning tag. The VPN answer returned source links and uncertainty instead of a comparison. These results preceded the later citation repair and evidence audit.
+
+After citation repair and shorter search excerpts, a further run produced a dangerous unsupported claim: the model treated an explicitly synthetic, unverified Neon historical price as real and claimed that pricing had changed. A later model-based audit was added to check a draft against retrieved records and cited excerpts, failing closed to the saved history and links when support is uncertain. In one live retest, the synthetic Postgres claim was withheld and missing history was reported correctly (6.1 s and 0.3 s respectively). One CRM call failed with `fetch failed` before the provider-outage handler was added. A later CRM retest returned the shortlist and 24 source links rather than a comparison (35.4 s). This remains a partial result.
+
+The audit uses a model, not deterministic proof or an independent fact checker. It can reject correct answers and miss unsupported claims, and adds provider calls and latency. We did not independently verify every price and release claim. Provider failures and rate limits can affect outcomes. The outage fallback was verified with a mock test after the live failure, not with a reproduced live outage.
+
+`npm test` passes 20 tests including search budgets, truncated output, reasoning-tag cleanup, missing dated history, citation repair, an unsupported-baseline rejection, and provider outages. `eval/seed.mjs` and `eval/run.mjs` provide a repeatable synthetic live harness; the runner records responses rather than scoring factual accuracy automatically. Full latest-code live evaluation of all eight questions remains outstanding.
