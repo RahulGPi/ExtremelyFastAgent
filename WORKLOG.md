@@ -147,3 +147,6 @@
 - Added a local toggle command for an OS-managed Alt+A binding; focused Alt+A also toggles the window. COSMIC does not advertise the global shortcut portal, and compositor-controlled positioning/always-on-top behavior is not guaranteed.
 - A Linux test with an isolated Node 24 and libxdo started the window and created a session. The user confirmed that the floating button reopens the chat and that the updated COSMIC Alt+A shortcut works while another app is focused. A clean isolated npm install loaded the native binding. Nine tests and JavaScript syntax checks pass. macOS and Windows have not been tested.
 - Updated the shortcut command to start SOLO when it is not running. The close button now quits; the separate minus button collapses. With the user's Node 24 and libxdo installed, a shortcut-start, collapse/reopen API calls, and quit API call passed in an isolated Linux test.
+
+## Live memory evaluation
+- Ran eight synthetic-history questions through configured providers using a separate database. Three passed, two were partial, and three failed: multi-CRM searches hit the tool-call limit; the Postgres response was truncated; and a missing-history answer leaked a reasoning delimiter and duplicated itself. The full case-by-case results, timing, and limits are in `reports/memory-evaluation-2026-11-11.md`.
