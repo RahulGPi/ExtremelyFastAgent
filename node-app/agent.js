@@ -9,6 +9,23 @@ export function searchBudget(value) {
  const n=Number(value);return Number.isInteger(n)&&n>=1&&n<=12?n:6;
 }
 
+export function requiresSearch(question) {
+ if(/\b(changed|changes|pricing|price|still correct|up.to.date|latest|current|today|search|since|shipped)\b/i.test(question))return true;
+ // Questions about past conversations should primarily search memory.
+ if(/\b(?:what|when)\s+(?:did|have)\s+(?:i|we)\s+(?:ask|discuss|say|talk)\b/i.test(question))return false;
+ return /\b(?:episode|episodes|filler)\b/i.test(question) && /\b(?:find|list|which|what|show|give|all)\b/i.test(question);
+}
+
+export function hasResponseLoop(value) {
+ const text=String(value||'');
+ if(text.length>200 && (text.match(/\b(?:wait|actually|let me correct|no,? let(?:’|'| u)s)\b/gi)||[]).length>=4)return true;
+ const words=text.replace(/https?:\/\/[^\s)]+/gi,'').toLowerCase().match(/[\p{L}\p{N}]+/gu)||[];
+ if(words.length<80)return false;
+ const seen=new Map();
+ for(let i=0;i<=words.length-8;i++){const phrase=words.slice(i,i+8).join(' ');const count=(seen.get(phrase)||0)+1;if(count>=4)return true;seen.set(phrase,count);}
+ return false;
+}
+
 export function afterReferenceDay(date,referenceEnd,zone=Intl.DateTimeFormat().resolvedOptions().timeZone) {
  const time=Date.parse(`${date}T00:00:00.000Z`),end=Date.parse(referenceEnd);
  if(!Number.isFinite(time)||!Number.isFinite(end)||!new Date(time).toISOString().startsWith(date))return false;
@@ -87,31 +104,34 @@ export async function runSearchLoop({messages,tool,needsSearch,memories,callMode
   }
   if(!m.tool_calls?.length) {
    let result=m;
-   if(m.finish_reason==='length') {
-    diagnostics({event:'truncated'});
-    try { result=await callModel([...messages,{role:'user',content:'Your previous response was cut off. Give a shorter complete answer using only the available evidence; explicitly state which items or claims remain unchecked, and cite exact source URLs.'}],tool,'none'); }
+   if(m.finish_reason==='length' || hasResponseLoop(m.content)) {
+    diagnostics({event:m.finish_reason==='length'?'truncated':'repeated_output'});
+    try { result=await callModel([...messages,{role:'user',content:'Your previous response was incomplete or repetitive. Give a short, coherent final answer without self-corrections or repeated entries. Use only available evidence, cite exact source URLs, and say what you cannot verify.'}],tool,'none'); }
     catch { result=m; }
    }
-   let answer=cleanAnswer(result.content)||'Sorry, I couldn’t come up with an answer. Please try again.';
-   if(result.finish_reason==='length') answer+='\n\nThe response was cut off before it could be completed.';
+   let unusable=result.finish_reason==='length'||hasResponseLoop(result.content);
+   if(unusable)diagnostics({event:result.finish_reason==='length'?'truncated_retry':'repeated_retry'});
+   let answer=unusable?'':cleanAnswer(result.content);
    if(sources.length && !citedSources(answer,sources).length) {
     try {
      const repaired=await callModel([...messages,{role:'user',content:'Give a short answer to the original question using the retrieved results. Put an exact source URL from a search result directly after each factual finding. If a relevant earlier baseline or item is missing, say so. Do not invent URLs. If you cannot support a finding, say it is unknown.'}],tool,'none');
      const candidate=cleanAnswer(repaired.content);
-     if(candidate && repaired.finish_reason!=='length' && citedSources(candidate,sources).length){answer=candidate;result=repaired;}
+     if(candidate && repaired.finish_reason!=='length' && !hasResponseLoop(candidate) && citedSources(candidate,sources).length){answer=candidate;result=repaired;unusable=false;}
     } catch { /* The evidence-only fallback below remains available. */ }
    }
    const question=messages.findLast(m=>m.role==='user')?.content||'';
    const auditArgs={answer,memories,sources,question,callModel:auditModel,referenceEnd};
-   let audit=(!(needsSearch||searched))?{supported:true,reason:'not_required'}:result.finish_reason==='length'?{supported:false,reason:'truncated'}:await auditAnswer(auditArgs);
+   let audit=unusable?{supported:false,reason:'incomplete_output'}:(!(needsSearch||searched))?{supported:true,reason:'not_required'}:await auditAnswer(auditArgs);
    if(audit.supported && /\b(?:since|changed|changes|shipped)\b/i.test(question) && /\b(?:changed|change|increased|decreased|raised|reduced|rose|unchanged|still|remains|launched|released|shipped|introduced|new features?)\b/i.test(answer))audit={supported:false,reason:'audit_rejected'};
    if(!audit.supported) {
     diagnostics({event:audit.reason});
     const findings=audit.reason==='audit_rejected'?await supportedFindings(auditArgs):[];
     const prior=memories.slice(0,8).map(m=>`- ${m.created_at} (${m.role}): ${m.content}`).join('\n');
     if(findings.length){answer=(prior?`Here’s what I found in your earlier conversations (not independently verified):\n${prior}\n\n`:'')+findings.join('\n\n')+'\n\nI couldn’t verify every detail or product, so some findings are omitted. A current price alone does not establish a change.';diagnostics({event:'partial_findings',count:findings.length});}
+    else if(unusable && !(needsSearch||searched))answer='Sorry, I couldn’t produce a clear, complete answer. Please try rephrasing your question.';
     else answer=(prior?`I found these earlier records (not independently verified):\n${prior}\n\n`:'')+'I could not verify a current answer yet.'+(sources.length?' Relevant search results:\n'+sources.map(s=>`- ${s.title}: ${s.url}`).join('\n'):' No usable web sources were returned.');
    }
+   if(!answer)answer='Sorry, I couldn’t come up with an answer. Please try again.';
    if(skipped || failed)diagnostics({event:'search_coverage',skipped,failed});
    if(skipped || failed)answer+=`\n\nSome requested searches were ${skipped?'not run because the search budget was reached':''}${skipped&&failed?' and ':''}${failed?'unsuccessful':''}; coverage may be incomplete.`;
    if(/\bwhat\s+(?:did|have)\s+i\s+ask\b/i.test(question)) {
