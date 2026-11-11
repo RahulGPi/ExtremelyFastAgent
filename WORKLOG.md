@@ -137,3 +137,7 @@
 - Added local interpretation of day-month dates and past weekdays, with separate local-midnight conversion for daylight-saving transitions. Invalid recognized dates are rejected; other expressions still rely on the model planner.
 - Current-information requests and searches now return an uncertainty message when the model provides no citation matching a returned result, including when no results are returned. Matching a URL does not validate the claim or ensure coverage of every shortlisted product.
 - Nine Node tests and JavaScript syntax checks pass, including India time, a US daylight-saving transition, invalid dates, and a future-weekday regression. This change has not been tested with a live provider or browser.
+
+## Browser window and session list
+- The Node server opens a Chrome/Chromium/Edge app window with an initial 460×720 size where available. The window manager controls its native frame and resizing; the browser version cannot reliably remove that frame on Wayland.
+- Reworked the session panel into compact rows with rename and delete dialogs, and hid empty sessions from the list. Nine Node tests and syntax checks pass; a local API smoke test verified empty-session filtering. The new dialog interactions have not been tested interactively.
